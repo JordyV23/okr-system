@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@theme {
+  /* Fuentes */
+  --font-sans: "Inter", "system-ui", "sans-serif";
+
+  /* Colores del Tema (Mapeo directo) */
+  --color-background: hsl(220 20% 97%);
+  --color-foreground: hsl(224 71% 4%);
+
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(224 71% 4%);
+
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(224 71% 4%);
+
+  --color-primary: hsl(239 84% 67%);
+  --color-primary-foreground: hsl(0 0% 100%);
+
+  --color-secondary: hsl(220 14% 96%);
+  --color-secondary-foreground: hsl(224 71% 4%);
+
+  --color-muted: hsl(220 14% 96%);
+  --color-muted-foreground: hsl(220 9% 46%);
+
+  --color-accent: hsl(220 14% 96%);
+  --color-accent-foreground: hsl(224 71% 4%);
+
+  --color-destructive: hsl(0 84% 60%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+
+  --color-border: hsl(220 13% 91%);
+  --color-input: hsl(220 13% 91%);
+  --color-ring: hsl(239 84% 67%);
+
+  /* Sidebar */
+  --color-sidebar-background: hsl(224 71% 4%);
+  --color-sidebar-foreground: hsl(220 14% 96%);
+  --color-sidebar-primary: hsl(239 84% 67%);
+  --color-sidebar-border: hsl(220 13% 20%);
+
+  /* Radios */
+  --radius-lg: 0.75rem;
+  --radius-md: calc(0.75rem - 2px);
+  --radius-sm: calc(0.75rem - 4px);
+
+  /* Animaciones */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-fade-in: fade-in 0.4s ease-out forwards;
+  --animate-slide-in-right: slide-in-right 0.3s ease-out forwards;
+
+  @keyframes accordion-down {
+    from { height: 0; }
+    to { height: var(--radix-accordion-content-height); }
+  }
+  @keyframes accordion-up {
+    from { height: var(--radix-accordion-content-height); }
+    to { height: 0; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slide-in-right {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+}
+
+/* Estilos Base */
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+/* Utilidades personalizadas para gradientes */
+@utility gradient-primary {
+  background: linear-gradient(135deg, hsl(239 84% 67%) 0%, hsl(262 83% 58%) 100%);
+}
+
+@utility shadow-glow {
+  box-shadow: 0 0 40px hsl(239 84% 67% / 0.15);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-muted);
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-muted-foreground), transparent 70%);
+  border-radius: 3px;
+}
