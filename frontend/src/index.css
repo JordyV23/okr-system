@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+
 @theme {
   /* Fuentes */
   --font-sans: "Inter", "system-ui", "sans-serif";

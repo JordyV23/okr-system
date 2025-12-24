@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { ObjectiveStatus, ApprovalStatus } from "@/types/okr";
 
 const statusConfig = {
   "not-started": {
