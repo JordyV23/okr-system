@@ -1,101 +1,242 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
-
+/* 2. CONFIGURACIÓN DEL TEMA (v4) */
 @theme {
-  /* Fuentes */
-  --font-sans: "Inter", "system-ui", "sans-serif";
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 
-  /* Colores del Tema (Mapeo directo) */
-  --color-background: hsl(220 20% 97%);
-  --color-foreground: hsl(224 71% 4%);
+  /* Mapeo de Colores - Usamos variables para que el modo oscuro funcione */
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
 
-  --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(224 71% 4%);
+  /* Colores de Estado y Sidebar */
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+  --color-info: hsl(var(--info));
+  --color-sidebar: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-border: hsl(var(--sidebar-border));
 
-  --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(224 71% 4%);
+  --color-status-on-track: hsl(var(--status-on-track));
+  --color-status-at-risk: hsl(var(--status-at-risk));
+  --color-status-delayed: hsl(var(--status-delayed));
+  --color-status-not-started: hsl(var(--status-not-started));
+  --color-status-completed: hsl(var(--status-completed));
 
-  --color-primary: hsl(239 84% 67%);
-  --color-primary-foreground: hsl(0 0% 100%);
-
-  --color-secondary: hsl(220 14% 96%);
-  --color-secondary-foreground: hsl(224 71% 4%);
-
-  --color-muted: hsl(220 14% 96%);
-  --color-muted-foreground: hsl(220 9% 46%);
-
-  --color-accent: hsl(220 14% 96%);
-  --color-accent-foreground: hsl(224 71% 4%);
-
-  --color-destructive: hsl(0 84% 60%);
-  --color-destructive-foreground: hsl(0 0% 100%);
-
-  --color-border: hsl(220 13% 91%);
-  --color-input: hsl(220 13% 91%);
-  --color-ring: hsl(239 84% 67%);
-
-  /* Sidebar */
-  --color-sidebar-background: hsl(224 71% 4%);
-  --color-sidebar-foreground: hsl(220 14% 96%);
-  --color-sidebar-primary: hsl(239 84% 67%);
-  --color-sidebar-border: hsl(220 13% 20%);
-
-  /* Radios */
-  --radius-lg: 0.75rem;
-  --radius-md: calc(0.75rem - 2px);
-  --radius-sm: calc(0.75rem - 4px);
+  /* Radios y Sombras */
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --shadow-glow: var(--shadow-glow);
+  --shadow-card: var(--shadow-md);
+  --shadow-card-hover: var(--shadow-lg);
 
   /* Animaciones */
-  --animate-accordion-down: accordion-down 0.2s ease-out;
-  --animate-accordion-up: accordion-up 0.2s ease-out;
   --animate-fade-in: fade-in 0.4s ease-out forwards;
   --animate-slide-in-right: slide-in-right 0.3s ease-out forwards;
+  --animate-pulse-soft: pulse-soft 2s ease-in-out infinite;
+  --animate-progress-fill: progress-fill 1s ease-out forwards;
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
 
-  @keyframes accordion-down {
-    from { height: 0; }
-    to { height: var(--radix-accordion-content-height); }
-  }
-  @keyframes accordion-up {
-    from { height: var(--radix-accordion-content-height); }
-    to { height: 0; }
-  }
   @keyframes fade-in {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
   @keyframes slide-in-right {
-    from { opacity: 0; transform: translateX(20px); }
-    to { opacity: 1; transform: translateX(0); }
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  @keyframes pulse-soft {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+  @keyframes progress-fill {
+    from {
+      width: 0%;
+    }
+  }
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
   }
 }
 
-/* Estilos Base */
+/* 3. VARIABLES DE DISEÑO (Light & Dark) */
 @layer base {
+  :root {
+    --background: 220 20% 97%;
+    --foreground: 224 71% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 71% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71% 4%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 224 71% 4%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 224 71% 4%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 76% 36%;
+    --warning: 38 92% 50%;
+    --info: 199 89% 48%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 239 84% 67%;
+    --radius: 0.75rem;
+
+    --sidebar-background: 224 71% 4%;
+    --sidebar-foreground: 220 14% 96%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-border: 220 13% 20%;
+
+    --status-on-track: 142 76% 36%;
+    --status-at-risk: 38 92% 50%;
+    --status-delayed: 0 84% 60%;
+    --status-not-started: 220 9% 70%;
+    --status-completed: 239 84% 67%;
+
+    --shadow-glow: 0 0 40px hsl(239 84% 67% / 0.15);
+    --shadow-md: 0 4px 6px -1px hsl(224 71% 4% / 0.1),
+      0 2px 4px -2px hsl(224 71% 4% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(224 71% 4% / 0.1),
+      0 4px 6px -4px hsl(224 71% 4% / 0.1);
+
+    /* Gradientes */
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(239 84% 67%) 0%,
+      hsl(262 83% 58%) 100%
+    );
+    --gradient-success: linear-gradient(
+      135deg,
+      hsl(142 76% 36%) 0%,
+      hsl(158 64% 52%) 100%
+    );
+  }
+
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 220 14% 96%;
+    --card: 220 13% 10%;
+    --card-foreground: 220 14% 96%;
+    --popover: 220 13% 10%;
+    --popover-foreground: 220 14% 96%;
+    --secondary: 220 13% 15%;
+    --muted: 220 13% 15%;
+    --muted-foreground: 220 9% 55%;
+    --accent: 220 13% 15%;
+    --destructive: 0 62% 50%;
+    --border: 220 13% 20%;
+    --sidebar-background: 220 13% 8%;
+  }
+
   * {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground antialiased font-sans;
   }
 }
 
-/* Utilidades personalizadas para gradientes */
+/* 4. UTILIDADES (Usando @utility de v4) */
 @utility gradient-primary {
-  background: linear-gradient(135deg, hsl(239 84% 67%) 0%, hsl(262 83% 58%) 100%);
+  background: var(--gradient-primary);
+}
+@utility gradient-success {
+  background: var(--gradient-success);
+}
+@utility text-balance {
+  text-wrap: balance;
 }
 
-@utility shadow-glow {
-  box-shadow: 0 0 40px hsl(239 84% 67% / 0.15);
+/* Staggered Animations */
+@utility stagger-1 {
+  animation-delay: 0.1s;
+}
+@utility stagger-2 {
+  animation-delay: 0.2s;
+}
+@utility stagger-3 {
+  animation-delay: 0.3s;
+}
+@utility stagger-4 {
+  animation-delay: 0.4s;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: var(--color-muted);
-}
-::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--color-muted-foreground), transparent 70%);
-  border-radius: 3px;
+/* 5. ELEMENTOS GLOBALES (Scrollbar) */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(
+      in srgb,
+      hsl(var(--muted-foreground)),
+      transparent 70%
+    );
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(
+      in srgb,
+      hsl(var(--muted-foreground)),
+      transparent 50%
+    );
+  }
 }
