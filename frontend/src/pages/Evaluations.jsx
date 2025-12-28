@@ -175,7 +175,7 @@ export const Evaluations = () => {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-linear-to-br from-primary to-primary/60 flex items-center justify-center">
                         <span className="text-lg font-semibold text-primary-foreground">
                           {evalItem.userName.split(' ').map(n => n[0]).join('')}
                         </span>
@@ -242,7 +242,7 @@ export const Evaluations = () => {
             <div className="bg-card rounded-xl border border-border/50 shadow-card p-6">
               <div className="flex items-start justify-between mb-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-full bg-linear-to-br from-primary to-primary/60 flex items-center justify-center">
                     <span className="text-2xl font-bold text-primary-foreground">MG</span>
                   </div>
                   <div>
@@ -353,7 +353,7 @@ export const Evaluations = () => {
                 <ul className="space-y-2">
                   {evaluation.strengths.map((strength, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm">
-                      <CheckCircle2 className="w-4 h-4 text-success mt-0.5 flex-shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-success mt-0.5 shrink-0" />
                       <span className="text-foreground">{strength}</span>
                     </li>
                   ))}
@@ -367,7 +367,7 @@ export const Evaluations = () => {
                 <ul className="space-y-2">
                   {evaluation.improvements.map((improvement, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm">
-                      <Target className="w-4 h-4 text-warning mt-0.5 flex-shrink-0" />
+                      <Target className="w-4 h-4 text-warning mt-0.5 shrink-0" />
                       <span className="text-foreground">{improvement}</span>
                     </li>
                   ))}

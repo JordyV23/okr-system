@@ -141,7 +141,7 @@ export const Reports = () => {
                 </div>
                 <PieChart className="w-5 h-5 text-muted-foreground" />
               </div>
-              <div className="h-[240px]">
+              <div className="h-60">
                 <ResponsiveContainer width="100%" height="100%">
                   <RechartsPie>
                     <Pie

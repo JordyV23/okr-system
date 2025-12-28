@@ -170,7 +170,7 @@ export const EvaluationFormDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-200 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {isLeaderEvaluation ? (
@@ -235,7 +235,7 @@ export const EvaluationFormDialog = ({
                 <p className="text-sm text-muted-foreground">
                   Califica el cumplimiento de cada objetivo (0-100%)
                 </p>
-                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                <div className="space-y-4 max-h-100 overflow-y-auto pr-2">
                   {objectives.map((obj) => (
                     <div
                       key={obj.id}
@@ -301,7 +301,7 @@ export const EvaluationFormDialog = ({
                 <p className="text-sm text-muted-foreground">
                   Califica cada competencia del 1 al 5
                 </p>
-                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                <div className="space-y-4 max-h-100 overflow-y-auto pr-2">
                   {competencies.map((comp) => (
                     <div
                       key={comp.id}

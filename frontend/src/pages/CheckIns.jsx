@@ -131,7 +131,7 @@ export const CheckIns = () => {
                   Nuevo Check-in
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
+              <DialogContent className="sm:max-w-125">
                 <DialogHeader>
                   <DialogTitle>Registrar Check-in</DialogTitle>
                 </DialogHeader>
@@ -304,7 +304,7 @@ export const CheckIns = () => {
                         </div>
 
                         <div className="flex items-start gap-2 mt-3 p-3 bg-muted/50 rounded-lg">
-                          <MessageSquare className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                          <MessageSquare className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
                           <p className="text-sm text-foreground">
                             {checkIn.comment}
                           </p>
@@ -312,7 +312,7 @@ export const CheckIns = () => {
 
                         {hasBlockers && (
                           <div className="flex items-start gap-2 mt-2 p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
-                            <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                            <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
                             <div>
                               <span className="text-xs font-medium text-destructive">
                                 Bloqueador:

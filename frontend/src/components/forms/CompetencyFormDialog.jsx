@@ -59,7 +59,7 @@ export const CompetencyFormDialog = ({ open, onOpenChange, competency }) => {
     return (
     <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-150] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Scale className="w-5 h-5 text-primary" />
@@ -144,7 +144,7 @@ export const CompetencyFormDialog = ({ open, onOpenChange, competency }) => {
             <div className="space-y-3">
               {levelDescriptions.slice(0, formData.levels).map((ld) => (
                 <div key={ld.level} className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                     <span className="text-sm font-bold text-primary">{ld.level}</span>
                   </div>
                   <div className="flex-1 space-y-1">
