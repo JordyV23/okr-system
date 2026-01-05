@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+
+# Entorno y Configuración
+.env
+.flaskenv
+*.bak
+*.config
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Base de Datos
+*.db
+*.sqlite3
+*.trc
+*.trm
+ora_*.log
+
+# Alembic
+alembic/__pycache__/
+alembic/versions/__pycache__/
+# Opcional: si usas la extensión de logs de alembic
+alembic.log 
+
+# Sistema
+Thumbs.db
+desktop.ini
