@@ -45,7 +45,7 @@ def upgrade() -> None:
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('logo_url', sa.String(length=500), nullable=True),
-    sa.Column('settings', sa.CLOB(), nullable=False),
+    sa.Column('settings', sa.JSON().with_variant(sa.CLOB(), 'oracle'), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )

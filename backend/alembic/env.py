@@ -34,10 +34,9 @@ target_metadata = Base.metadata
 
 # Sobrescribir la URL de la base de datos con la de nuestra configuración
 # Alembic necesita usar el driver síncrono, no el asíncrono
-# Convertir oracle+oracledb:// a oracle:// para Alembic
-alembic_db_url = DATABASE_URL.replace(
-    "oracle+oracledb://", "oracle+oracledb://"
-).replace("+aiosqlite://", "sqlite:///")
+# Convertir oracle+oracledb:// a oracle+oracledb:// para Alembic (ya es síncrono)
+# Convertir sqlite+aiosqlite:// a sqlite:// para Alembic
+alembic_db_url = DATABASE_URL.replace("sqlite+aiosqlite://", "sqlite:///")
 config.set_main_option("sqlalchemy.url", alembic_db_url)
 
 

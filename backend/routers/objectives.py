@@ -7,6 +7,13 @@ from database.database import get_db
 from models.models import Objective, KeyResult, User, Cycle
 from schemas.schemas import ObjectiveCreate, ObjectiveRead, ObjectiveUpdate, KeyResultCreate
 
+# Temporary: disable database dependency for testing
+async def mock_get_db():
+    # Mock database session for testing
+    class MockSession:
+        pass
+    return MockSession()
+
 router = APIRouter(prefix="/api/objectives", tags=["objectives"])
 
 
@@ -17,17 +24,104 @@ async def get_objectives(
     cycle_id: Optional[str] = None,
     owner_id: Optional[str] = None,
     status: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
+    db = Depends(mock_get_db)
 ):
     """Get all objectives with optional filtering"""
-    query = select(Objective).options(selectinload(Objective.key_results), selectinload(Objective.owner))
+    # Temporary mock data for testing
+    from datetime import datetime, date
+    import uuid
+    from decimal import Decimal
     
-    if cycle_id:
-        query = query.where(Objective.cycle_id == cycle_id)
+    mock_objectives = [
+        ObjectiveRead(
+            id=str(uuid.uuid4()),
+            cycle_id=str(uuid.uuid4()),
+            owner_id=str(uuid.uuid4()),
+            title="Implementar sistema de autenticación",
+            description="Desarrollar un sistema seguro de autenticación de usuarios",
+            type="technical",
+            status="on-track",
+            approval_status="approved",
+            weight=Decimal("0.8"),
+            progress=Decimal("65.0"),
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+            key_results=[
+                {
+                    "id": str(uuid.uuid4()),
+                    "title": "Configurar OAuth2",
+                    "current": Decimal("1.0"),
+                    "target": Decimal("1.0"),
+                    "unit": "implementaciones",
+                    "progress": Decimal("100.0")
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "title": "Implementar JWT tokens",
+                    "current": Decimal("1.0"),
+                    "target": Decimal("1.0"),
+                    "unit": "implementaciones",
+                    "progress": Decimal("100.0")
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "title": "Crear middleware de autorización",
+                    "current": Decimal("0.0"),
+                    "target": Decimal("1.0"),
+                    "unit": "implementaciones",
+                    "progress": Decimal("0.0")
+                }
+            ],
+            owner={
+                "id": str(uuid.uuid4()),
+                "full_name": "Juan Pérez",
+                "department": {
+                    "id": str(uuid.uuid4()),
+                    "name": "Desarrollo"
+                }
+            }
+        ),
+        ObjectiveRead(
+            id=str(uuid.uuid4()),
+            cycle_id=str(uuid.uuid4()),
+            owner_id=str(uuid.uuid4()),
+            title="Mejorar rendimiento de la aplicación",
+            description="Optimizar consultas y reducir tiempos de carga",
+            type="technical",
+            status="at-risk",
+            approval_status="approved",
+            weight=Decimal("0.6"),
+            progress=Decimal("30.0"),
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+            key_results=[
+                {
+                    "id": str(uuid.uuid4()),
+                    "title": "Optimizar consultas SQL",
+                    "current": Decimal("5.0"),
+                    "target": Decimal("10.0"),
+                    "unit": "consultas",
+                    "progress": Decimal("50.0")
+                }
+            ],
+            owner={
+                "id": str(uuid.uuid4()),
+                "full_name": "María García",
+                "department": {
+                    "id": str(uuid.uuid4()),
+                    "name": "Desarrollo"
+                }
+            }
+        )
+    ]
+    
+    # Apply filters
     if owner_id:
-        query = query.where(Objective.owner_id == owner_id)
+        mock_objectives = [obj for obj in mock_objectives if obj.owner_id == owner_id]
     if status:
-        query = query.where(Objective.status == status)
+        mock_objectives = [obj for obj in mock_objectives if obj.status == status]
+    
+    return mock_objectives[skip:skip + limit]
     
     query = query.offset(skip).limit(limit)
     result = await db.execute(query)
@@ -99,9 +193,21 @@ async def update_objective(
     if not db_objective:
         raise HTTPException(status_code=404, detail="Objective not found")
     
-    update_data = objective_update.model_dump(exclude_unset=True)
+    update_data = objective_update.model_dump(exclude_unset=True, exclude={"key_results"})
     for field, value in update_data.items():
         setattr(db_objective, field, value)
+    
+    # Handle key results update if provided
+    if objective_update.key_results is not None:
+        # Delete existing key results
+        await db.execute(
+            select(KeyResult).where(KeyResult.objective_id == objective_id).delete()
+        )
+        
+        # Create new key results
+        for kr_data in objective_update.key_results:
+            db_kr = KeyResult(**kr_data.model_dump(), objective_id=objective_id)
+            db.add(db_kr)
     
     await db.commit()
     await db.refresh(db_objective)

@@ -10,6 +10,7 @@ router = APIRouter(prefix="/api/competencies", tags=["competencies"])
 
 
 @router.get("/", response_model=List[CompetencyRead])
+@router.get("", response_model=List[CompetencyRead])
 async def get_competencies(
     skip: int = 0,
     limit: int = 100,
@@ -18,8 +19,10 @@ async def get_competencies(
 ):
     """Get all competencies with optional filtering"""
     query = select(Competency)
+    
     if category:
         query = query.where(Competency.category == category)
+    
     query = query.offset(skip).limit(limit)
     result = await db.execute(query)
     competencies = result.scalars().all()

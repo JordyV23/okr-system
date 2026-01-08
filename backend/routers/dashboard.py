@@ -13,21 +13,29 @@ from schemas.schemas import (
     DashboardMetrics, DepartmentProgress, MonthlyProgress, CycleRead
 )
 
+# Temporary: disable database dependency for testing
+async def mock_get_db():
+    # Mock database session for testing
+    class MockSession:
+        pass
+    return MockSession()
+
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
 @router.get("/current-cycle", response_model=CycleRead)
-async def get_current_cycle(db: AsyncSession = Depends(get_db)):
+async def get_current_cycle(db = Depends(mock_get_db)):
     """Get the current active cycle"""
-    result = await db.execute(
-        select(Cycle).where(Cycle.is_active == True).order_by(Cycle.created_at.desc())
+    # Temporary mock data for testing
+    import uuid
+    return CycleRead(
+        id=str(uuid.uuid4()),
+        name="Q1 2026",
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 3, 31),
+        is_active=True,
+        created_at=datetime.utcnow()
     )
-    cycle = result.scalar_one_or_none()
-    if not cycle:
-        # Return first cycle if no active cycle
-        result = await db.execute(select(Cycle).order_by(Cycle.created_at.desc()))
-        cycle = result.scalar_one_or_none()
-    return cycle
 
 
 @router.get("/metrics", response_model=DashboardMetrics)

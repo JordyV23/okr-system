@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List
+from typing import List, Optional
 from database.database import get_db
 from models.models import User, Department
 from schemas.schemas import UserCreate, UserRead, UserUpdate, UserWithDepartment
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 async def get_users(
     skip: int = 0,
     limit: int = 100,
-    department_id: str = None,
+    department_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """Get all users with optional filtering"""

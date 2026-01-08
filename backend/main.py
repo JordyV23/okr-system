@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import users, objectives, checkins, evaluations, competencies, pdi, dashboard, cycles
+from routers import users, objectives, checkins, evaluations, competencies, pdi, dashboard, cycles, settings
 
 app = FastAPI(
     title="OKS System API",
     description="API para el sistema de gestión de Objetivos y Key Results (OKR)",
-    version="1.0.0"
+    version="1.0.0",
+    redirect_slashes=False
 )
 
 # Configure CORS
@@ -26,6 +27,7 @@ app.include_router(competencies.router)
 app.include_router(pdi.router)
 app.include_router(dashboard.router)
 app.include_router(cycles.router)
+app.include_router(settings.router)
 
 
 @app.get("/")

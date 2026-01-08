@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, date
 from typing import List, Optional
-from sqlalchemy import String, ForeignKey, Boolean, DateTime, JSON, Numeric, Integer, Text, Date,CLOB
+from sqlalchemy import String, ForeignKey, Boolean, DateTime, JSON, Numeric, Integer, Text, Date, CLOB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 class Base(DeclarativeBase):
@@ -20,8 +20,8 @@ class Organization(Base):
     )
     name: Mapped[str] = mapped_column(String(255))
     logo_url: Mapped[Optional[str]] = mapped_column(String(500))
-    # En Oracle 21c+ existe tipo JSON, en anteriores es BLOB/CLOB con check constraint
-    settings: Mapped[dict] = mapped_column(CLOB, default={})
+    # En Oracle 21c+ existe tipo JSON, en anteriores usar CLOB con JSON válido
+    settings: Mapped[dict] = mapped_column(JSON().with_variant(CLOB(), 'oracle'), default={})
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     departments: Mapped[List["Department"]] = relationship(
@@ -43,7 +43,8 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     department: Mapped["Department"] = relationship(back_populates="users")
-    manager: Mapped[Optional["User"]] = relationship("User", remote_side="User.id")
+    manager: Mapped[Optional["User"]] = relationship("User", remote_side=[id], back_populates="subordinates")
+    subordinates: Mapped[List["User"]] = relationship("User", back_populates="manager")
     objectives: Mapped[List["Objective"]] = relationship("Objective", foreign_keys="[Objective.owner_id]", back_populates="owner")
     check_ins: Mapped[List["CheckIn"]] = relationship("CheckIn", back_populates="user")
     evaluations: Mapped[List["Evaluation"]] = relationship("Evaluation", foreign_keys="[Evaluation.user_id]", back_populates="user")
@@ -153,10 +154,7 @@ class Competency(Base):
     category: Mapped[str] = mapped_column(String(50))  # core, leadership, technical, functional
     levels: Mapped[int] = mapped_column(Integer, default=5)
 
-    level_descriptions: Mapped[dict] = mapped_column(
-        JSON().with_variant(CLOB, "oracle"), 
-        default=dict
-    )
+    level_descriptions: Mapped[dict] = mapped_column(JSON().with_variant(CLOB(), 'oracle'), default={})
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

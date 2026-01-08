@@ -10,6 +10,7 @@ router = APIRouter(prefix="/api/cycles", tags=["cycles"])
 
 
 @router.get("/", response_model=List[CycleRead])
+@router.get("", response_model=List[CycleRead])
 async def get_cycles(
     skip: int = 0,
     limit: int = 100,
@@ -18,9 +19,11 @@ async def get_cycles(
 ):
     """Get all cycles with optional filtering"""
     query = select(Cycle)
+    
     if is_active is not None:
         query = query.where(Cycle.is_active == is_active)
-    query = query.order_by(Cycle.created_at.desc()).offset(skip).limit(limit)
+    
+    query = query.offset(skip).limit(limit)
     result = await db.execute(query)
     cycles = result.scalars().all()
     return cycles
@@ -71,6 +74,14 @@ async def update_cycle(
         active_cycles = result.scalars().all()
         for active_cycle in active_cycles:
             active_cycle.is_active = False
+    
+    update_data = cycle_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_cycle, field, value)
+    
+    await db.commit()
+    await db.refresh(db_cycle)
+    return db_cycle
     
     update_data = cycle_update.model_dump()
     for field, value in update_data.items():

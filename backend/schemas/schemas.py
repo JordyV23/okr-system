@@ -140,6 +140,7 @@ class ObjectiveUpdate(BaseModel):
     end_date: Optional[date] = None
     methodology: Optional[str] = None
     owner_id: Optional[str] = None
+    key_results: Optional[List[KeyResultCreate]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -361,3 +362,16 @@ class DepartmentProgress(BaseModel):
 class MonthlyProgress(BaseModel):
     month: str
     progress: Decimal
+
+# ========== Settings Schemas ==========
+class SettingsBase(BaseModel):
+    evaluation_scale_objectives: str
+    evaluation_scale_competencies: str
+    weight_objectives: int
+    weight_competencies: int
+
+class SettingsRead(SettingsBase):
+    pass
+
+class SettingsUpdate(SettingsBase):
+    pass
