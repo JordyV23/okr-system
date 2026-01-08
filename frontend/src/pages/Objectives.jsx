@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { StatusBadge, ApprovalBadge } from "@/components/ui/StatusBadge";
 import { Progress } from "@/components/ui/Progress";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
-import { mockObjectives } from "@/data/mockData";
 import {
   Search,
   Filter,
@@ -22,6 +21,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ObjectiveFormDialog } from "@/components/forms/ObjectiveFormDialog";
+import { objectivesApi } from "@/lib/api";
+import { useToast } from "@/hooks/UseToast";
 
 const typeLabels = {
   strategic: { label: "Estratégico", className: "bg-primary/10 text-primary" },
@@ -38,16 +39,39 @@ const statusFilters = [
   { value: "completed", label: "Completado" },
 ];
 export const Objectives = () => {
+  const { toast } = useToast();
+  const [objectives, setObjectives] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [viewMode, setViewMode] = useState("list");
   const [expandedObjective, setExpandedObjective] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
-  const filteredObjectives = mockObjectives.filter((obj) => {
+  const loadObjectives = async () => {
+    try {
+      const data = await objectivesApi.getAll();
+      setObjectives(data);
+    } catch (error) {
+      console.error('Error loading objectives:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los objetivos.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadObjectives();
+  }, []);
+
+  const filteredObjectives = objectives.filter((obj) => {
     const matchesSearch =
       obj.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      obj.ownerName.toLowerCase().includes(searchQuery.toLowerCase());
+      (obj.owner?.full_name || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus =
       selectedStatus === "all" || obj.status === selectedStatus;
     return matchesSearch && matchesStatus;
@@ -130,14 +154,22 @@ export const Objectives = () => {
           </div>
 
           {/* Objectives List */}
-          <div
-            className={cn(
-              viewMode === "grid"
-                ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
-                : "space-y-4"
-            )}
-          >
-            {filteredObjectives.map((objective, index) => (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Cargando objetivos...</p>
+              </div>
+            </div>
+          ) : (
+            <div
+              className={cn(
+                viewMode === "grid"
+                  ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+                  : "space-y-4"
+              )}
+            >
+              {filteredObjectives.map((objective, index) => (
               <div
                 key={objective.id}
                 className={cn(
@@ -176,7 +208,7 @@ export const Objectives = () => {
                     </Badge>
                     <StatusBadge status={objective.status} size="sm" />
                     <ApprovalBadge
-                      status={objective.approvalStatus}
+                      status={objective.approval_status}
                       size="sm"
                     />
                   </div>
@@ -198,21 +230,21 @@ export const Objectives = () => {
                   <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1.5">
                       <User className="w-4 h-4" />
-                      <span>{objective.ownerName}</span>
+                      <span>{objective.owner?.full_name || 'Sin asignar'}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Building2 className="w-4 h-4" />
-                      <span>{objective.department}</span>
+                      <span>{objective.owner?.department?.name || 'Sin departamento'}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Calendar className="w-4 h-4" />
-                      <span>{objective.endDate}</span>
+                      <span>{objective.end_date ? new Date(objective.end_date).toLocaleDateString('es-ES') : 'Sin fecha'}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Key Results (Expandable) */}
-                {objective.keyResults.length > 0 && (
+                {(objective.key_results && objective.key_results.length > 0) && (
                   <div className="border-t border-border/50">
                     <button
                       onClick={() =>
@@ -225,7 +257,7 @@ export const Objectives = () => {
                       className="w-full flex items-center justify-between px-5 py-3 hover:bg-muted/50 transition-colors"
                     >
                       <span className="text-sm font-medium text-foreground">
-                        {objective.keyResults.length} Key Results
+                        {objective.key_results.length} Key Results
                       </span>
                       {expandedObjective === objective.id ? (
                         <ChevronDown className="w-4 h-4 text-muted-foreground" />
@@ -235,7 +267,7 @@ export const Objectives = () => {
                     </button>
                     {expandedObjective === objective.id && (
                       <div className="px-5 pb-4 space-y-3">
-                        {objective.keyResults.map((kr) => (
+                        {objective.key_results.map((kr) => (
                           <div
                             key={kr.id}
                             className="p-3 bg-muted/50 rounded-lg"
@@ -257,9 +289,10 @@ export const Objectives = () => {
                 )}
               </div>
             ))}
-          </div>
+            </div>
+          )}
 
-          {filteredObjectives.length === 0 && (
+          {filteredObjectives.length === 0 && !isLoading && (
             <div className="text-center py-12">
               <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="font-semibold text-foreground mb-1">
@@ -272,7 +305,11 @@ export const Objectives = () => {
           )}
         </div>
 
-        <ObjectiveFormDialog open={isFormOpen} onOpenChange={setIsFormOpen} />
+        <ObjectiveFormDialog 
+          open={isFormOpen} 
+          onOpenChange={setIsFormOpen}
+          onSuccess={loadObjectives}
+        />
       </AppLayout>
     </>
   );

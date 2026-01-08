@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Trash2, TrendingUp, Calendar, User, Target } from "lucide-react";
-import { mockTeamMembers } from "@/data/mockData";
+import { pdisApi, usersApi } from "@/lib/api";
+import { useToast } from "@/hooks/UseToast";
 
 const actionTypes = [
   { value: "training", label: "Capacitación / Curso" },
@@ -35,8 +36,12 @@ export const PDIFormDialog = ({
   open,
   onOpenChange,
   employeeName = "María García",
+  onSuccess,
 //   employeeId,
 }) => {
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [formData, setFormData] = useState({
     strengths: "",
     improvements: "",
@@ -53,6 +58,21 @@ export const PDIFormDialog = ({
       successIndicator: "",
     },
   ]);
+
+  useEffect(() => {
+    const loadTeamMembers = async () => {
+      try {
+        const data = await usersApi.getAll();
+        setTeamMembers(data);
+      } catch (error) {
+        console.error('Error loading team members:', error);
+      }
+    };
+
+    if (open) {
+      loadTeamMembers();
+    }
+  }, [open]);
 
   const addAction = () => {
     setActions([
@@ -82,10 +102,31 @@ export const PDIFormDialog = ({
     );
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log({ ...formData, actions });
-    onOpenChange(false);
+    setIsLoading(true);
+
+    try {
+      const data = { ...formData, actions, employeeName };
+      
+      await pdisApi.create(data);
+      toast({
+        title: "PDI creado",
+        description: "El Plan de Desarrollo Individual se ha creado correctamente.",
+      });
+      
+      onOpenChange(false);
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      console.error('Error creating PDI:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo crear el PDI. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -283,11 +324,17 @@ export const PDIFormDialog = ({
                             <SelectValue placeholder="Selecciona responsable" />
                           </SelectTrigger>
                           <SelectContent>
-                            {mockTeamMembers.map((member) => (
-                              <SelectItem key={member.id} value={member.id}>
-                                {member.name}
+                            {teamMembers.length === 0 ? (
+                              <SelectItem value="" disabled>
+                                Cargando usuarios...
                               </SelectItem>
-                            ))}
+                            ) : (
+                              teamMembers.map((member) => (
+                                <SelectItem key={member.id} value={member.id}>
+                                  {member.name}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
@@ -326,11 +373,12 @@ export const PDIFormDialog = ({
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
+                disabled={isLoading}
               >
                 Cancelar
               </Button>
-              <Button type="submit" className="gradient-primary border-0">
-                Guardar PDI
+              <Button type="submit" className="gradient-primary border-0" disabled={isLoading}>
+                {isLoading ? 'Guardando...' : 'Guardar PDI'}
               </Button>
             </DialogFooter>
           </form>

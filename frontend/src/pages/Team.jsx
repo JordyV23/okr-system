@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { mockTeamMembers } from "@/data/mockData";
 import {
   Search,
   Filter,
@@ -21,6 +20,8 @@ import {
 import { cn } from "@/lib/utils";
 import { TeamMemberFormDialog } from "@/components/forms/TeamMemberFormDialog";
 import { PDIFormDialog } from "@/components/forms/PDIFormDialog";
+import { usersApi } from "@/lib/api";
+import { useToast } from "@/hooks/UseToast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,18 +44,41 @@ const getProgressBg = (progress) => {
 };
 
 export const Team = () => {
+  const { toast } = useToast();
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   // const [viewMode, setViewMode] = useState("grid");
   const [isMemberFormOpen, setIsMemberFormOpen] = useState(false);
   const [isPDIOpen, setIsPDIOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
 
+  const loadTeamMembers = async () => {
+    try {
+      const data = await usersApi.getAll();
+      setTeamMembers(data);
+    } catch (error) {
+      console.error('Error loading team members:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los miembros del equipo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTeamMembers();
+  }, []);
+
   const handleOpenPDI = (member) => {
     setSelectedMember(member);
     setIsPDIOpen(true);
   };
 
-  const filteredMembers = mockTeamMembers.filter(
+  const filteredMembers = teamMembers.filter(
     (member) =>
       member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.department.toLowerCase().includes(searchQuery.toLowerCase())
@@ -62,17 +86,17 @@ export const Team = () => {
 
   // Calculate team stats
   const teamStats = {
-    totalMembers: mockTeamMembers.length,
-    avgProgress: Math.round(
-      mockTeamMembers.reduce((acc, m) => acc + m.avgProgress, 0) /
-        mockTeamMembers.length
-    ),
-    totalObjectives: mockTeamMembers.reduce(
-      (acc, m) => acc + m.objectivesCount,
+    totalMembers: teamMembers.length,
+    avgProgress: teamMembers.length > 0 ? Math.round(
+      teamMembers.reduce((acc, m) => acc + (m.avgProgress || 0), 0) /
+        teamMembers.length
+    ) : 0,
+    totalObjectives: teamMembers.reduce(
+      (acc, m) => acc + (m.objectivesCount || 0),
       0
     ),
-    pendingCheckIns: mockTeamMembers.reduce(
-      (acc, m) => acc + m.pendingCheckIns,
+    pendingCheckIns: teamMembers.reduce(
+      (acc, m) => acc + (m.pendingCheckIns || 0),
       0
     ),
   };
@@ -171,8 +195,16 @@ export const Team = () => {
           </div>
 
           {/* Team Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredMembers.map((member, index) => (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Cargando miembros del equipo...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filteredMembers.map((member, index) => (
               <div
                 key={member.id}
                 className={cn(
@@ -311,9 +343,10 @@ export const Team = () => {
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          )}
 
-          {filteredMembers.length === 0 && (
+          {filteredMembers.length === 0 && !isLoading && (
             <div className="text-center py-12">
               <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="font-semibold text-foreground mb-1">
@@ -329,6 +362,7 @@ export const Team = () => {
         <TeamMemberFormDialog
           open={isMemberFormOpen}
           onOpenChange={setIsMemberFormOpen}
+          onSuccess={loadTeamMembers}
         />
 
         {selectedMember && (
@@ -337,6 +371,9 @@ export const Team = () => {
             onOpenChange={setIsPDIOpen}
             employeeName={selectedMember.name}
             employeeId={selectedMember.id}
+            onSuccess={() => {
+              // Aquí podríamos refrescar PDIs si fuera necesario
+            }}
           />
         )}
       </AppLayout>

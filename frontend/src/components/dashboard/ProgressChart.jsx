@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   AreaChart,
   Area,
@@ -7,9 +8,25 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { monthlyProgress } from "@/data/mockData";
+import { dashboardApi } from "@/lib/api";
 
 export const ProgressChart = () => {
+  const [monthlyProgress, setMonthlyProgress] = useState([]);
+
+  useEffect(() => {
+    const loadMonthlyProgress = async () => {
+      try {
+        const data = await dashboardApi.getMonthlyProgress();
+        setMonthlyProgress(data);
+      } catch (error) {
+        console.error('Error loading monthly progress:', error);
+        // Fallback to empty array
+        setMonthlyProgress([]);
+      }
+    };
+    loadMonthlyProgress();
+  }, []);
+
   return (
     <>
       <div className="h-60 w-full">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
@@ -20,7 +20,8 @@ import {
 } from "@/components/ui/Select";
 import { Plus, Trash2, Target, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { mockTeamMembers } from "@/data/mockData";
+import { objectivesApi, usersApi, cyclesApi } from "@/lib/api";
+import { useToast } from "@/hooks/UseToast";
 
 const objectiveTypes = [
   { value: "strategic", label: "Estratégico" },
@@ -38,22 +39,37 @@ const unitTypes = [
   { value: "USD", label: "Dinero (USD)" },
 ];
 
-export const ObjectiveFormDialog = ({ open, onOpenChange, objective }) => {
+export const ObjectiveFormDialog = ({
+  open,
+  onOpenChange,
+  objective,
+  onSuccess,
+}) => {
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [cycles, setCycles] = useState([]);
+  const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
     title: objective?.title || "",
     description: objective?.description || "",
     type: objective?.type || "",
-    ownerId: objective?.ownerId || "",
-    startDate: objective?.startDate || "",
-    endDate: objective?.endDate || "",
+    ownerId: objective?.owner?.id || objective?.owner_id || "",
+    cycleId: objective?.cycle?.id || objective?.cycle_id || "",
+    startDate: objective?.start_date || "",
+    endDate: objective?.end_date || "",
     weight: objective?.weight || 25,
-    methodology: "okr",
+    methodology: objective?.methodology || "okr",
   });
 
   const [keyResults, setKeyResults] = useState(
-    objective?.keyResults || [
-      { id: "1", title: "", metric: "", target: 0, unit: "%" },
-    ]
+    objective?.key_results?.map((kr) => ({
+      id: kr.id,
+      title: kr.title,
+      metric: kr.metric || "",
+      target: kr.target,
+      unit: kr.unit || "%",
+    })) || [{ id: "1", title: "", metric: "", target: 0, unit: "%" }]
   );
 
   const addKeyResult = () => {
@@ -81,11 +97,151 @@ export const ObjectiveFormDialog = ({ open, onOpenChange, objective }) => {
     );
   };
 
-  const handleSubmit = (e) => {
+  const loadTeamMembers = async () => {
+    try {
+      const data = await usersApi.getAll();
+      setTeamMembers(data);
+    } catch (error) {
+      console.error("Error loading team members:", error);
+    }
+  };
+
+  const loadCycles = async () => {
+    try {
+      const data = await cyclesApi.getAll();
+      setCycles(data);
+    } catch (error) {
+      console.error("Error loading cycles:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (open) {
+      loadTeamMembers();
+      loadCycles();
+    }
+  }, [open]);
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.title.trim()) {
+      newErrors.title = "El título es requerido";
+    }
+
+    if (!formData.type) {
+      newErrors.type = "El tipo de objetivo es requerido";
+    }
+
+    if (!formData.cycleId) {
+      newErrors.cycleId = "El ciclo es requerido";
+    }
+
+    if (!formData.ownerId) {
+      newErrors.ownerId = "El responsable es requerido";
+    }
+
+    if (!formData.startDate) {
+      newErrors.startDate = "La fecha de inicio es requerida";
+    }
+
+    if (!formData.endDate) {
+      newErrors.endDate = "La fecha de fin es requerida";
+    }
+
+    if (
+      formData.startDate &&
+      formData.endDate &&
+      new Date(formData.startDate) >= new Date(formData.endDate)
+    ) {
+      newErrors.endDate =
+        "La fecha de fin debe ser posterior a la fecha de inicio";
+    }
+
+    // Validate key results
+    const krErrors = [];
+    keyResults.forEach((kr, index) => {
+      const krError = {};
+      if (!kr.title.trim()) {
+        krError.title = "El título del resultado clave es requerido";
+      }
+      if (!kr.target || kr.target <= 0) {
+        krError.target = "El objetivo debe ser mayor a 0";
+      }
+      if (krError.title || krError.target) {
+        krErrors[index] = krError;
+      }
+    });
+
+    if (krErrors.length > 0) {
+      newErrors.keyResults = krErrors;
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Here you would submit the form data
-    console.log({ ...formData, keyResults });
-    onOpenChange(false);
+
+    if (!validateForm()) {
+      toast({
+        title: "Error de validación",
+        description: "Por favor corrige los errores en el formulario.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const data = {
+        ...formData,
+        owner_id: formData.ownerId,
+        cycle_id: formData.cycleId,
+        start_date: formData.startDate,
+        end_date: formData.endDate,
+        key_results: keyResults.map((kr) => ({
+          title: kr.title,
+          metric: kr.metric,
+          target: parseFloat(kr.target),
+          unit: kr.unit,
+        })),
+      };
+
+      // Remove frontend-specific fields
+      delete data.ownerId;
+      delete data.cycleId;
+      delete data.startDate;
+      delete data.endDate;
+
+      if (objective) {
+        await objectivesApi.update(objective.id, data);
+        toast({
+          title: "Objetivo actualizado",
+          description: "El objetivo se ha actualizado correctamente.",
+        });
+      } else {
+        await objectivesApi.create(data);
+        toast({
+          title: "Objetivo creado",
+          description: "El objetivo se ha creado correctamente.",
+        });
+      }
+
+      onOpenChange(false);
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      console.error("Error saving objective:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar el objetivo. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -145,12 +301,17 @@ export const ObjectiveFormDialog = ({ open, onOpenChange, objective }) => {
                 <Input
                   id="title"
                   value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setFormData({ ...formData, title: e.target.value });
+                    if (errors.title) setErrors({ ...errors, title: null });
+                  }}
                   placeholder="Ej: Incrementar la satisfacción del cliente"
+                  className={errors.title ? "border-red-500" : ""}
                   required
                 />
+                {errors.title && (
+                  <p className="text-sm text-red-500">{errors.title}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -171,11 +332,12 @@ export const ObjectiveFormDialog = ({ open, onOpenChange, objective }) => {
                   <Label htmlFor="type">Tipo de objetivo *</Label>
                   <Select
                     value={formData.type}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, type: value })
-                    }
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, type: value });
+                      if (errors.type) setErrors({ ...errors, type: null });
+                    }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={errors.type ? "border-red-500" : ""}>
                       <SelectValue placeholder="Selecciona un tipo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -186,81 +348,132 @@ export const ObjectiveFormDialog = ({ open, onOpenChange, objective }) => {
                       ))}
                     </SelectContent>
                   </Select>
+                  {errors.type && (
+                    <p className="text-sm text-red-500">{errors.type}</p>
+                  )}
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="cycle">Ciclo *</Label>
+                  <Select
+                    value={formData.cycleId}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, cycleId: value });
+                      if (errors.cycleId)
+                        setErrors({ ...errors, cycleId: null });
+                    }}
+                  >
+                    <SelectTrigger
+                      className={errors.cycleId ? "border-red-500" : ""}
+                    >
+                      <SelectValue placeholder="Selecciona un ciclo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cycles.map((cycle) => (
+                        <SelectItem key={cycle.id} value={cycle.id}>
+                          {cycle.name} ({cycle.start_date} - {cycle.end_date})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.cycleId && (
+                    <p className="text-sm text-red-500">{errors.cycleId}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="owner">Responsable *</Label>
                   <Select
                     value={formData.ownerId}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, ownerId: value })
-                    }
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, ownerId: value });
+                      if (errors.ownerId)
+                        setErrors({ ...errors, ownerId: null });
+                    }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger
+                      className={errors.ownerId ? "border-red-500" : ""}
+                    >
                       <SelectValue placeholder="Selecciona responsable" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockTeamMembers.map((member) => (
+                      {teamMembers.map((member) => (
                         <SelectItem key={member.id} value={member.id}>
                           {member.name} - {member.role}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {errors.ownerId && (
+                    <p className="text-sm text-red-500">{errors.ownerId}</p>
+                  )}
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="startDate">Fecha inicio *</Label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="startDate">Fecha inicio *</Label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="startDate"
+                        type="date"
+                        value={formData.startDate}
+                        onChange={(e) => {
+                          setFormData({
+                            ...formData,
+                            startDate: e.target.value,
+                          });
+                          if (errors.startDate) setErrors({ ...errors, startDate: null });
+                        }}
+                        className={`pl-9 ${errors.startDate ? "border-red-500" : ""}`}
+                        required
+                      />
+                    </div>
+                    {errors.startDate && (
+                      <p className="text-sm text-red-500">{errors.startDate}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="endDate">Fecha fin *</Label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="endDate"
+                        type="date"
+                        value={formData.endDate}
+                        onChange={(e) => {
+                          setFormData({ ...formData, endDate: e.target.value });
+                          if (errors.endDate) setErrors({ ...errors, endDate: null });
+                        }}
+                        className={`pl-9 ${errors.endDate ? "border-red-500" : ""}`}
+                        required
+                      />
+                    </div>
+                    {errors.endDate && (
+                      <p className="text-sm text-red-500">{errors.endDate}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="weight">Peso (%) *</Label>
                     <Input
-                      id="startDate"
-                      type="date"
-                      value={formData.startDate}
+                      id="weight"
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={formData.weight}
                       onChange={(e) =>
-                        setFormData({ ...formData, startDate: e.target.value })
+                        setFormData({
+                          ...formData,
+                          weight: parseInt(e.target.value) || 0,
+                        })
                       }
-                      className="pl-9"
                       required
                     />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="endDate">Fecha fin *</Label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="endDate"
-                      type="date"
-                      value={formData.endDate}
-                      onChange={(e) =>
-                        setFormData({ ...formData, endDate: e.target.value })
-                      }
-                      className="pl-9"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="weight">Peso (%) *</Label>
-                  <Input
-                    id="weight"
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={formData.weight}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        weight: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    required
-                  />
                 </div>
               </div>
             </div>
@@ -314,12 +527,23 @@ export const ObjectiveFormDialog = ({ open, onOpenChange, objective }) => {
                       <Label>Título del resultado *</Label>
                       <Input
                         value={kr.title}
-                        onChange={(e) =>
-                          updateKeyResult(kr.id, "title", e.target.value)
-                        }
+                        onChange={(e) => {
+                          updateKeyResult(kr.id, "title", e.target.value);
+                          if (errors.keyResults?.[index]?.title) {
+                            const newErrors = { ...errors };
+                            if (newErrors.keyResults) {
+                              newErrors.keyResults[index] = { ...newErrors.keyResults[index], title: null };
+                            }
+                            setErrors(newErrors);
+                          }
+                        }}
                         placeholder="Ej: Aumentar NPS"
+                        className={errors.keyResults?.[index]?.title ? "border-red-500" : ""}
                         required
                       />
+                      {errors.keyResults?.[index]?.title && (
+                        <p className="text-sm text-red-500">{errors.keyResults[index].title}</p>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -338,16 +562,27 @@ export const ObjectiveFormDialog = ({ open, onOpenChange, objective }) => {
                         <Input
                           type="number"
                           value={kr.target || ""}
-                          onChange={(e) =>
+                          onChange={(e) => {
                             updateKeyResult(
                               kr.id,
                               "target",
                               parseFloat(e.target.value) || 0
-                            )
-                          }
-                          placeholder="100"
+                            );
+                            if (errors.keyResults?.[index]?.target) {
+                              const newErrors = { ...errors };
+                              if (newErrors.keyResults) {
+                                newErrors.keyResults[index] = { ...newErrors.keyResults[index], target: null };
+                              }
+                              setErrors(newErrors);
+                            }
+                          }}
+                          placeholder="Ej: 4.5"
+                          className={errors.keyResults?.[index]?.target ? "border-red-500" : ""}
                           required
                         />
+                        {errors.keyResults?.[index]?.target && (
+                          <p className="text-sm text-red-500">{errors.keyResults[index].target}</p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label>Unidad</Label>
@@ -380,11 +615,20 @@ export const ObjectiveFormDialog = ({ open, onOpenChange, objective }) => {
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
+                disabled={isLoading}
               >
                 Cancelar
               </Button>
-              <Button type="submit" className="gradient-primary border-0">
-                {objective ? "Guardar cambios" : "Crear objetivo"}
+              <Button
+                type="submit"
+                className="gradient-primary border-0"
+                disabled={isLoading}
+              >
+                {isLoading
+                  ? "Guardando..."
+                  : objective
+                  ? "Guardar cambios"
+                  : "Crear objetivo"}
               </Button>
             </DialogFooter>
           </form>

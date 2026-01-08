@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Scale, Plus, Trash2 } from 'lucide-react';
+import { competenciesApi } from '@/lib/api';
+import { useToast } from '@/hooks/UseToast';
 
 
 const defaultLevelDescriptions = [
@@ -29,17 +31,32 @@ const defaultLevelDescriptions = [
   { level: 5, description: 'Referente, lidera iniciativas' },
 ];
 
-export const CompetencyFormDialog = ({ open, onOpenChange, competency }) => {
+export const CompetencyFormDialog = ({ open, onOpenChange, competency, onSuccess }) => {
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
-      const [formData, setFormData] = useState({
+  // Convertir level_descriptions de dict a array cuando se edita
+  const getLevelDescriptionsArray = () => {
+    if (competency?.level_descriptions) {
+      return Object.entries(competency.level_descriptions)
+        .map(([level, description]) => ({
+          level: parseInt(level),
+          description: description
+        }))
+        .sort((a, b) => a.level - b.level);
+    }
+    return defaultLevelDescriptions.slice(0, competency?.levels || 5);
+  };
+
+  const [formData, setFormData] = useState({
     name: competency?.name || '',
     description: competency?.description || '',
     levels: competency?.levels || 5,
-    category: 'core',
+    category: competency?.category || 'core',
   });
 
   const [levelDescriptions, setLevelDescriptions] = useState(
-    competency?.levelDescriptions || defaultLevelDescriptions
+    getLevelDescriptionsArray()
   );
 
   const updateLevelDescription = (level, description) => {
@@ -50,10 +67,78 @@ export const CompetencyFormDialog = ({ open, onOpenChange, competency }) => {
     );
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log({ ...formData, levelDescriptions });
-    onOpenChange(false);
+    setIsLoading(true);
+
+    try {
+      // Convert levelDescriptions array to dict for API
+      const level_descriptions = {};
+      levelDescriptions.forEach(ld => {
+        level_descriptions[ld.level.toString()] = ld.description;
+      });
+      
+      const data = { 
+        ...formData, 
+        level_descriptions
+      };
+      
+      if (competency) {
+        await competenciesApi.update(competency.id, data);
+        toast({
+          title: "Competencia actualizada",
+          description: "La competencia se ha actualizado correctamente.",
+        });
+      } else {
+        await competenciesApi.create(data);
+        toast({
+          title: "Competencia creada",
+          description: "La competencia se ha creado correctamente.",
+        });
+      }
+      
+      onOpenChange(false);
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      console.error('Error saving competency:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la competencia. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!competency) return;
+    
+    const confirmDelete = window.confirm(
+      `¿Estás seguro de que quieres eliminar la competencia "${competency.name}"? Esta acción no se puede deshacer.`
+    );
+    
+    if (!confirmDelete) return;
+
+    setIsLoading(true);
+    try {
+      await competenciesApi.delete(competency.id);
+      toast({
+        title: "Competencia eliminada",
+        description: "La competencia se ha eliminado correctamente.",
+      });
+      onOpenChange(false);
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      console.error('Error deleting competency:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la competencia. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
     return (
@@ -193,13 +278,29 @@ export const CompetencyFormDialog = ({ open, onOpenChange, competency }) => {
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" className="gradient-primary border-0">
-              {competency ? 'Guardar cambios' : 'Crear competencia'}
-            </Button>
+          <DialogFooter className="gap-2 sm:gap-0 flex items-center justify-between">
+            <div>
+              {competency && (
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  onClick={handleDelete} 
+                  disabled={isLoading}
+                  className="gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Eliminar
+                </Button>
+              )}
+            </div>
+            <div className="gap-2 sm:gap-0 flex">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+                Cancelar
+              </Button>
+              <Button type="submit" className="gradient-primary border-0" disabled={isLoading}>
+                {isLoading ? 'Guardando...' : (competency ? 'Guardar cambios' : 'Crear competencia')}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

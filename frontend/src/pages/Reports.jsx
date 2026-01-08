@@ -1,8 +1,10 @@
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { ProgressChart } from "@/components/dashboard/ProgressChart";
 import { DepartmentChart } from "@/components/dashboard/DepartmentChart";
-import { mockMetrics, departmentProgress } from "@/data/mockData";
+import { dashboardApi } from "@/lib/api";
+import { useToast } from "@/hooks/UseToast";
 import {
   Download,
   FileSpreadsheet,
@@ -23,6 +25,7 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
+import { departmentProgress as mockDepartmentProgress } from "@/data/mockData";
 
 const statusDistribution = [
   { name: "En línea", value: 30, color: "hsl(142, 76%, 36%)" },
@@ -59,6 +62,34 @@ const reportTypes = [
 ];
 
 export const Reports = () => {
+  const { toast } = useToast();
+  const [metrics, setMetrics] = useState(null);
+  const [departmentProgress, setDepartmentProgress] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [metricsData, deptProgressData] = await Promise.all([
+          dashboardApi.getMetrics(),
+          dashboardApi.getDepartmentProgress()
+        ]);
+        setMetrics(metricsData);
+        setDepartmentProgress(deptProgressData.length > 0 ? deptProgressData : mockDepartmentProgress);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los datos. Mostrando datos de ejemplo.",
+          variant: "destructive",
+        });
+        setDepartmentProgress(mockDepartmentProgress);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
   return (
     <>
       <AppLayout title="Reportes" subtitle="Analytics y métricas del sistema">
@@ -81,30 +112,46 @@ export const Reports = () => {
 
           {/* Quick Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-card rounded-xl p-4 border border-border/50 shadow-card text-center">
-              <p className="text-3xl font-bold text-foreground">
-                {mockMetrics.totalObjectives}
-              </p>
-              <p className="text-sm text-muted-foreground">Total Objetivos</p>
-            </div>
-            <div className="bg-card rounded-xl p-4 border border-border/50 shadow-card text-center">
-              <p className="text-3xl font-bold text-success">
-                {mockMetrics.onTrackPercentage}%
-              </p>
-              <p className="text-sm text-muted-foreground">En Línea</p>
-            </div>
-            <div className="bg-card rounded-xl p-4 border border-border/50 shadow-card text-center">
-              <p className="text-3xl font-bold text-primary">
-                {mockMetrics.avgProgress}%
-              </p>
-              <p className="text-sm text-muted-foreground">Avance Promedio</p>
-            </div>
-            <div className="bg-card rounded-xl p-4 border border-border/50 shadow-card text-center">
-              <p className="text-3xl font-bold text-warning">
-                {mockMetrics.atRiskCount}
-              </p>
-              <p className="text-sm text-muted-foreground">En Riesgo</p>
-            </div>
+            {isLoading ? (
+              // Loading skeleton
+              Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="bg-card rounded-xl p-4 border border-border/50 shadow-card text-center animate-pulse">
+                  <div className="h-8 bg-muted rounded mb-2"></div>
+                  <div className="h-4 bg-muted rounded w-3/4 mx-auto"></div>
+                </div>
+              ))
+            ) : metrics ? (
+              <>
+                <div className="bg-card rounded-xl p-4 border border-border/50 shadow-card text-center">
+                  <p className="text-3xl font-bold text-foreground">
+                    {metrics.totalObjectives || 0}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Total Objetivos</p>
+                </div>
+                <div className="bg-card rounded-xl p-4 border border-border/50 shadow-card text-center">
+                  <p className="text-3xl font-bold text-success">
+                    {metrics.onTrackPercentage || 0}%
+                  </p>
+                  <p className="text-sm text-muted-foreground">En Línea</p>
+                </div>
+                <div className="bg-card rounded-xl p-4 border border-border/50 shadow-card text-center">
+                  <p className="text-3xl font-bold text-primary">
+                    {metrics.avgProgress || 0}%
+                  </p>
+                  <p className="text-sm text-muted-foreground">Avance Promedio</p>
+                </div>
+                <div className="bg-card rounded-xl p-4 border border-border/50 shadow-card text-center">
+                  <p className="text-3xl font-bold text-warning">
+                    {metrics.atRiskCount || 0}
+                  </p>
+                  <p className="text-sm text-muted-foreground">En Riesgo</p>
+                </div>
+              </>
+            ) : (
+              <div className="col-span-4 text-center py-8">
+                <p className="text-muted-foreground">No se pudieron cargar las métricas</p>
+              </div>
+            )}
           </div>
 
           {/* Charts Row */}

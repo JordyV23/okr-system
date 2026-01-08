@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,107 +21,78 @@ import {
   Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const initialObjectives = [
-  {
-    id: "1",
-    title: "Incrementar la satisfacción del cliente",
-    weight: 30,
-    targetProgress: 75,
-    selfScore: 80,
-    comment: "",
-  },
-  {
-    id: "2",
-    title: "Optimizar procesos de ventas",
-    weight: 25,
-    targetProgress: 45,
-    selfScore: 50,
-    comment: "",
-  },
-  {
-    id: "3",
-    title: "Desarrollar nuevos productos",
-    weight: 20,
-    targetProgress: 82,
-    selfScore: 85,
-    comment: "",
-  },
-  {
-    id: "4",
-    title: "Reducir costos operativos",
-    weight: 15,
-    targetProgress: 30,
-    selfScore: 35,
-    comment: "",
-  },
-  {
-    id: "5",
-    title: "Fortalecer cultura organizacional",
-    weight: 10,
-    targetProgress: 68,
-    selfScore: 70,
-    comment: "",
-  },
-];
-
-const initialCompetencies = [
-  {
-    id: "1",
-    name: "Liderazgo",
-    description: "Capacidad de guiar y motivar equipos",
-    expectedLevel: 4,
-    selfScore: 4,
-    comment: "",
-  },
-  {
-    id: "2",
-    name: "Trabajo en equipo",
-    description: "Colaboración efectiva",
-    expectedLevel: 4,
-    selfScore: 5,
-    comment: "",
-  },
-  {
-    id: "3",
-    name: "Orientación a resultados",
-    description: "Enfoque en lograr objetivos",
-    expectedLevel: 5,
-    selfScore: 4,
-    comment: "",
-  },
-  {
-    id: "4",
-    name: "Innovación",
-    description: "Propuestas de mejora continua",
-    expectedLevel: 3,
-    selfScore: 3,
-    comment: "",
-  },
-  {
-    id: "5",
-    name: "Comunicación",
-    description: "Transmisión clara de información",
-    expectedLevel: 4,
-    selfScore: 4,
-    comment: "",
-  },
-];
+import { evaluationsApi, objectivesApi, competenciesApi, cyclesApi } from "@/lib/api";
+import { useToast } from "@/hooks/UseToast";
 
 export const EvaluationFormDialog = ({
   open,
   onOpenChange,
-  evaluationType,
-  employeeName = "María García",
+  userId,
+  cycleId,
+  evaluation,
+  onSuccess,
 }) => {
-  const [objectives, setObjectives] = useState(initialObjectives);
-  const [competencies, setCompetencies] = useState(initialCompetencies);
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [objectives, setObjectives] = useState([]);
+  const [competencies, setCompetencies] = useState([]);
   const [generalComments, setGeneralComments] = useState({
     strengths: "",
     improvements: "",
     developmentActions: "",
   });
   const [activeTab, setActiveTab] = useState("objectives");
+
+  // Load objectives and competencies when dialog opens
+  useEffect(() => {
+    const loadData = async () => {
+      if (!open || !userId) return;
+
+      try {
+        // Load objectives for the user
+        const objectivesData = await objectivesApi.getAll({ owner_id: userId });
+        const formattedObjectives = objectivesData.map(obj => ({
+          id: obj.id,
+          title: obj.title,
+          weight: (obj.weight || 0) * 100, // Convert to percentage for display
+          targetProgress: (obj.progress || 0) * 100, // Convert to percentage for display
+          selfScore: 0,
+          comment: "",
+        }));
+        setObjectives(formattedObjectives);
+
+        // Load competencies
+        const competenciesData = await competenciesApi.getAll();
+        const formattedCompetencies = competenciesData.map(comp => ({
+          id: comp.id,
+          name: comp.name,
+          description: comp.description,
+          expectedLevel: 3, // Default expected level
+          selfScore: 0,
+          comment: "",
+        }));
+        setCompetencies(formattedCompetencies);
+
+        // If editing existing evaluation, load the data
+        if (evaluation) {
+          setGeneralComments({
+            strengths: evaluation.strengths || "",
+            improvements: evaluation.improvements || "",
+            developmentActions: evaluation.development_actions || "",
+          });
+        }
+      } catch (error) {
+        console.error('Error loading evaluation data:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los datos de la evaluación.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    loadData();
+  }, [open, userId, evaluation, toast]);
 
   const updateObjective = (id, field, value) => {
     setObjectives(
@@ -153,19 +124,80 @@ export const EvaluationFormDialog = ({
     return (avg / 5) * 100;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log({
-      objectives,
-      competencies,
-      generalComments,
-      objectivesScore: calculateObjectivesScore(),
-      competenciesScore: calculateCompetenciesScore(),
-    });
-    onOpenChange(false);
-  };
+    setIsLoading(true);
 
-  const isLeaderEvaluation = evaluationType === "leader";
+    try {
+      // Get current cycle if not provided
+      let currentCycleId = cycleId;
+      if (!currentCycleId) {
+        const cycles = await cyclesApi.getAll({ is_active: true });
+        if (cycles.length === 0) {
+          toast({
+            title: "Error",
+            description: "No hay un ciclo activo disponible. Contacte al administrador.",
+            variant: "destructive",
+          });
+          return;
+        }
+        currentCycleId = cycles[0].id;
+      }
+
+      const evaluationData = {
+        user_id: userId,
+        cycle_id: currentCycleId,
+        period: "Q1 2025", // This should come from the cycle
+        phase: "self-evaluation",
+        objectives_weight: 70.0,
+        competencies_weight: 30.0,
+        strengths: generalComments.strengths,
+        improvements: generalComments.improvements,
+        development_actions: generalComments.developmentActions,
+        evaluation_competencies: competencies.map(comp => ({
+          competency_id: comp.id,
+          self_score: comp.selfScore,
+          expected_level: comp.expectedLevel,
+          comment: comp.comment,
+        })),
+        evaluation_objectives: objectives.map(obj => ({
+          objective_id: obj.id,
+          self_score: obj.selfScore / 100, // Convert percentage to decimal
+          weight: obj.weight / 100, // Convert percentage to decimal
+          target_progress: obj.targetProgress / 100, // Convert percentage to decimal
+          comment: obj.comment,
+        })),
+      };
+
+      if (evaluation) {
+        // Update existing evaluation
+        await evaluationsApi.update(evaluation.id, evaluationData);
+        toast({
+          title: "Evaluación actualizada",
+          description: "La evaluación se ha actualizado correctamente.",
+        });
+      } else {
+        // Create new evaluation
+        await evaluationsApi.create(evaluationData);
+        toast({
+          title: "Evaluación enviada",
+          description: "La evaluación se ha enviado correctamente.",
+        });
+      }
+      
+      onOpenChange(false);
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      console.error('Error submitting evaluation:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo enviar la evaluación. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <>
@@ -173,21 +205,12 @@ export const EvaluationFormDialog = ({
         <DialogContent className="sm:max-w-200 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {isLeaderEvaluation ? (
-                <>
-                  <Star className="w-5 h-5 text-warning" />
-                  Evaluación del Líder - {employeeName}
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-5 h-5 text-primary" />
-                  Autoevaluación
-                </>
-              )}
+              <CheckCircle2 className="w-5 h-5 text-primary" />
+              {evaluation ? "Editar Evaluación" : "Nueva Autoevaluación"}
             </DialogTitle>
             <DialogDescription>
-              {isLeaderEvaluation
-                ? "Evalúa el desempeño del colaborador en objetivos y competencias"
+              {evaluation 
+                ? "Edita tu evaluación existente"
                 : "Evalúa tu propio desempeño en el período actual"}
             </DialogDescription>
           </DialogHeader>
@@ -471,11 +494,12 @@ export const EvaluationFormDialog = ({
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
+                disabled={isLoading}
               >
                 Guardar borrador
               </Button>
-              <Button type="submit" className="gradient-primary border-0">
-                Enviar evaluación
+              <Button type="submit" className="gradient-primary border-0" disabled={isLoading}>
+                {isLoading ? 'Enviando...' : 'Enviar evaluación'}
               </Button>
             </DialogFooter>
           </form>

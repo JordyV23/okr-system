@@ -1,17 +1,31 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Target } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Progress } from "@/components/ui/Progress";
-import { mockObjectives } from "@/data/mockData";
+import { objectivesApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export const ObjectivesList = () => {
-  const topObjectives = mockObjectives.slice(0, 4);
+  const [objectives, setObjectives] = useState([]);
+
+  useEffect(() => {
+    const loadObjectives = async () => {
+      try {
+        const data = await objectivesApi.getAll({ limit: 4 });
+        setObjectives(data);
+      } catch (error) {
+        console.error('Error loading objectives:', error);
+        setObjectives([]);
+      }
+    };
+    loadObjectives();
+  }, []);
 
   return (
     <>
       <div className="space-y-3">
-        {topObjectives.map((objective, index) => (
+        {objectives.map((objective, index) => (
           <Link
             key={objective.id}
             to={`/objectives/${objective.id}`}
@@ -32,7 +46,7 @@ export const ObjectivesList = () => {
                   <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                 </div>
                 <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
-                  <span>{objective.ownerName}</span>
+                  <span>{objective.owner?.full_name}</span>
                   <span>•</span>
                   <span>{objective.department}</span>
                 </div>

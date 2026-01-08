@@ -139,3 +139,10 @@ export const dashboardApi = {
   },
 };
 
+// ========== Settings API ==========
+export const settingsApi = {
+  get: () => request('/api/settings'),
+  update: (data) => request('/api/settings', { method: 'PUT', body: data }),
+};
+
+

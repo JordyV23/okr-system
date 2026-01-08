@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { User, Mail, Building2, Briefcase } from 'lucide-react';
+import { usersApi } from '@/lib/api';
+import { useToast } from '@/hooks/UseToast';
 
 const departments = [
   'Operaciones',
@@ -42,7 +44,9 @@ const roles = [
 ];
 
 
-export const TeamMemberFormDialog = ({ open, onOpenChange, member }) => {
+export const TeamMemberFormDialog = ({ open, onOpenChange, member, onSuccess }) => {
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
      const [formData, setFormData] = useState({
     name: member?.name || '',
@@ -54,10 +58,37 @@ export const TeamMemberFormDialog = ({ open, onOpenChange, member }) => {
     employeeId: '',
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(formData);
-    onOpenChange(false);
+    setIsLoading(true);
+
+    try {
+      if (member) {
+        await usersApi.update(member.id, formData);
+        toast({
+          title: "Colaborador actualizado",
+          description: "La información del colaborador se ha actualizado correctamente.",
+        });
+      } else {
+        await usersApi.create(formData);
+        toast({
+          title: "Colaborador creado",
+          description: "El nuevo colaborador se ha agregado correctamente.",
+        });
+      }
+      
+      onOpenChange(false);
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      console.error('Error saving team member:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la información del colaborador. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -187,11 +218,11 @@ export const TeamMemberFormDialog = ({ open, onOpenChange, member }) => {
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
               Cancelar
             </Button>
-            <Button type="submit" className="gradient-primary border-0">
-              {member ? 'Guardar cambios' : 'Agregar colaborador'}
+            <Button type="submit" className="gradient-primary border-0" disabled={isLoading}>
+              {isLoading ? 'Guardando...' : (member ? 'Guardar cambios' : 'Agregar colaborador')}
             </Button>
           </DialogFooter>
         </form>

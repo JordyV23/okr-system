@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { ProgressRing } from "@/components/ui/ProgressRing";
@@ -6,7 +7,8 @@ import { ProgressChart } from "@/components/dashboard/ProgressChart";
 import { DepartmentChart } from "@/components/dashboard/DepartmentChart";
 import { ObjectivesList } from "@/components/dashboard/ObjectivesList";
 import { RecentCheckIns } from "@/components/dashboard/RecentCheckIns";
-import { mockMetrics, mockCycle } from "@/data/mockData";
+import { dashboardApi } from "@/lib/api";
+import { useToast } from "@/hooks/UseToast";
 import {
   Target,
   CheckCircle2,
@@ -20,6 +22,34 @@ import {
 import { Button } from "@/components/ui/button";
 
 export const Dashboard = () => {
+  const { toast } = useToast();
+  const [cycle, setCycle] = useState(null);
+  const [metrics, setMetrics] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadDashboardData = async () => {
+    try {
+      const [cycleData, metricsData] = await Promise.all([
+        dashboardApi.getCurrentCycle(),
+        dashboardApi.getMetrics()
+      ]);
+      setCycle(cycleData);
+      setMetrics(metricsData);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los datos del dashboard.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
   return (
     <>
       <AppLayout
@@ -32,7 +62,7 @@ export const Dashboard = () => {
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div className="flex items-center gap-6">
                 <ProgressRing
-                  progress={mockCycle.progress}
+                  progress={cycle?.progress || 0}
                   size={100}
                   strokeWidth={8}
                   labelClassName="text-primary-foreground"
@@ -42,10 +72,9 @@ export const Dashboard = () => {
                     <Calendar className="w-4 h-4 opacity-80" />
                     <span className="text-sm opacity-80">Ciclo Actual</span>
                   </div>
-                  <h2 className="text-2xl font-bold mb-1">{mockCycle.name}</h2>
+                  <h2 className="text-2xl font-bold mb-1">{cycle?.name || 'Cargando...'}</h2>
                   <p className="text-sm opacity-80">
-                    {mockCycle.daysRemaining} días restantes • Finaliza el 31 de
-                    diciembre
+                    {cycle?.daysRemaining || 0} días restantes • Finaliza el {cycle?.endDate || 'Cargando...'}
                   </p>
                 </div>
               </div>
@@ -69,8 +98,8 @@ export const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard
               title="Total Objetivos"
-              value={mockMetrics.totalObjectives}
-              subtitle={`${mockMetrics.completedObjectives} completados`}
+              value={metrics?.totalObjectives || 0}
+              subtitle={`${metrics?.completedObjectives || 0} completados`}
               icon={Target}
               trend="up"
               trendValue="+12% vs ciclo anterior"
@@ -78,7 +107,7 @@ export const Dashboard = () => {
             />
             <MetricCard
               title="Avance Promedio"
-              value={`${mockMetrics.avgProgress}%`}
+              value={`${metrics?.avgProgress || 0}%`}
               subtitle="Ponderado por peso"
               icon={TrendingUp}
               trend="up"
@@ -87,7 +116,7 @@ export const Dashboard = () => {
             />
             <MetricCard
               title="Objetivos en Riesgo"
-              value={mockMetrics.atRiskCount}
+              value={metrics?.atRiskCount || 0}
               subtitle="Requieren atención"
               icon={AlertTriangle}
               trend="down"
@@ -96,7 +125,7 @@ export const Dashboard = () => {
             />
             <MetricCard
               title="Check-ins Pendientes"
-              value={mockMetrics.pendingCheckIns}
+              value={metrics?.pendingCheckIns || 0}
               subtitle="Esta semana"
               icon={Clock}
               iconClassName="bg-info/10 text-info"

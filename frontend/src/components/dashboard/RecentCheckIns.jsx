@@ -1,13 +1,29 @@
+import { useState, useEffect } from "react";
 import { Clock, TrendingUp, AlertTriangle } from "lucide-react";
-import { mockCheckIns } from "@/data/mockData";
+import { checkInsApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export const RecentCheckIns = () => {
+  const [checkIns, setCheckIns] = useState([]);
+
+  useEffect(() => {
+    const loadCheckIns = async () => {
+      try {
+        const data = await checkInsApi.getAll({ limit: 3 });
+        setCheckIns(data);
+      } catch (error) {
+        console.error('Error loading check-ins:', error);
+        setCheckIns([]);
+      }
+    };
+    loadCheckIns();
+  }, []);
+
   return (
     <>
       <div className="space-y-4">
-        {mockCheckIns.slice(0, 3).map((checkIn, index) => {
-          const progressDiff = checkIn.progress - checkIn.previousProgress;
+        {checkIns.map((checkIn, index) => {
+          const progressDiff = checkIn.progress - (checkIn.previousProgress || 0);
           const hasBlockers = !!checkIn.blockers;
 
           return (

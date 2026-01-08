@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { departmentProgress } from '@/data/mockData';
+import { dashboardApi } from '@/lib/api';
 
 const getBarColor = (progress) => {
   if (progress >= 75) return 'hsl(142, 76%, 36%)';
@@ -9,6 +10,21 @@ const getBarColor = (progress) => {
 };
 
 export const DepartmentChart = () => {
+  const [departmentProgress, setDepartmentProgress] = useState([]);
+
+  useEffect(() => {
+    const loadDepartmentProgress = async () => {
+      try {
+        const data = await dashboardApi.getDepartmentProgress();
+        setDepartmentProgress(data);
+      } catch (error) {
+        console.error('Error loading department progress:', error);
+        setDepartmentProgress([]);
+      }
+    };
+    loadDepartmentProgress();
+  }, []);
+
   return (
     <>
         <div className="h-60 w-full">

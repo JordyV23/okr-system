@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,15 +29,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CompetencyFormDialog } from '@/components/forms/CompetencyFormDialog';
-
-const competencies = [
-  { id: 1, name: 'Liderazgo', levels: 5, description: 'Capacidad de guiar y motivar equipos' },
-  { id: 2, name: 'Trabajo en equipo', levels: 5, description: 'Colaboración efectiva con otros' },
-  { id: 3, name: 'Orientación a resultados', levels: 5, description: 'Enfoque en lograr objetivos' },
-  { id: 4, name: 'Innovación', levels: 5, description: 'Propuestas de mejora continua' },
-  { id: 5, name: 'Comunicación', levels: 5, description: 'Transmisión clara de información' },
-  { id: 6, name: 'Adaptabilidad', levels: 5, description: 'Flexibilidad ante cambios' },
-];
+import { competenciesApi, cyclesApi, settingsApi } from '@/lib/api';
 
 const evaluationScales = [
   { value: '1-5', label: '1 a 5' },
@@ -47,8 +39,17 @@ const evaluationScales = [
 ];
 
 export const Settings = () => {
-
-    const [notifications, setNotifications] = useState({
+  const [competencies, setCompetencies] = useState([]);
+  const [cycles, setCycles] = useState([]);
+  const [currentCycle, setCurrentCycle] = useState(null);
+  const [settings, setSettings] = useState({
+    evaluation_scale_objectives: '1-5',
+    evaluation_scale_competencies: '1-5',
+    weight_objectives: 70,
+    weight_competencies: 30,
+  });
+  const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState({
     emailCheckIn: true,
     emailDeadline: true,
     emailEvaluation: true,
@@ -66,10 +67,97 @@ export const Settings = () => {
     setIsCompetencyFormOpen(true);
   };
 
+  const handleDeleteCompetency = async (comp) => {
+    if (!window.confirm(`¿Estás seguro de que quieres eliminar la competencia "${comp.name}"?`)) {
+      return;
+    }
+    
+    try {
+      await competenciesApi.delete(comp.id);
+      // Recargar competencias
+      const competenciesData = await competenciesApi.getAll();
+      setCompetencies(competenciesData);
+    } catch (error) {
+      console.error('Error deleting competency:', error);
+    }
+  };
+
   const handleNewCompetency = () => {
     setEditingCompetency(undefined);
     setIsCompetencyFormOpen(true);
   };
+
+  const handleCompetencySuccess = async () => {
+    try {
+      const competenciesData = await competenciesApi.getAll();
+      setCompetencies(competenciesData);
+    } catch (error) {
+      console.error('Error reloading competencies:', error);
+    }
+  };
+
+  const handleSaveCycle = async () => {
+    if (!currentCycle) return;
+    
+    try {
+      await cyclesApi.update(currentCycle.id, {
+        name: currentCycle.name,
+        start_date: currentCycle.start_date,
+        end_date: currentCycle.end_date,
+        is_active: currentCycle.is_active,
+      });
+      // Reload cycles after successful update
+      const cyclesData = await cyclesApi.getAll();
+      setCycles(cyclesData);
+      const activeCycle = cyclesData.find(cycle => cycle.is_active);
+      setCurrentCycle(activeCycle || cyclesData[0]);
+    } catch (error) {
+      console.error('Error saving cycle:', error);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      const updatedSettings = await settingsApi.update(settings);
+      setSettings(updatedSettings);
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      // Maybe show a toast or alert
+    }
+  };
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [competenciesData, cyclesData] = await Promise.all([
+          competenciesApi.getAll(),
+          cyclesApi.getAll()
+        ]);
+        setCompetencies(competenciesData);
+        setCycles(cyclesData);
+        
+        // Find active cycle
+        const activeCycle = cyclesData.find(cycle => cycle.is_active);
+        setCurrentCycle(activeCycle || cyclesData[0]);
+      } catch (error) {
+        console.error('Error loading cycles and competencies data:', error);
+      }
+
+      // Load settings separately
+      try {
+        const settingsData = await settingsApi.get();
+        setSettings(settingsData);
+      } catch (error) {
+        console.error('Error loading settings data:', error);
+        // Keep default settings
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   return (
     <>
@@ -89,49 +177,71 @@ export const Settings = () => {
               <SettingsIcon className="w-4 h-4" />
               Escalas
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="gap-2">
+            {/* <TabsTrigger value="notifications" className="gap-2">
               <Bell className="w-4 h-4" />
               Notificaciones
-            </TabsTrigger>
-            <TabsTrigger value="permissions" className="gap-2">
+            </TabsTrigger> */}
+            {/* <TabsTrigger value="permissions" className="gap-2">
               <Shield className="w-4 h-4" />
               Permisos
-            </TabsTrigger>
+            </TabsTrigger> */}
           </TabsList>
 
           {/* Cycles Configuration */}
           <TabsContent value="cycles" className="space-y-6">
             <div className="bg-card rounded-xl border border-border/50 shadow-card p-6">
               <h3 className="font-semibold text-foreground mb-4">Ciclo Actual</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Nombre del ciclo</Label>
-                  <Input defaultValue="H2 2024" />
+              {loading ? (
+                <p>Cargando...</p>
+              ) : currentCycle ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Nombre del ciclo</Label>
+                    <Input 
+                      value={currentCycle.name || ''} 
+                      onChange={(e) => setCurrentCycle({...currentCycle, name: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tipo de ciclo</Label>
+                    <Select 
+                      value={currentCycle.name?.includes('Q') ? 'quarter' : 'semester'} 
+                      onValueChange={(value) => {
+                        // This could be used to update cycle type, but for now just keep it
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="quarter">Trimestral</SelectItem>
+                        <SelectItem value="semester">Semestral</SelectItem>
+                        <SelectItem value="annual">Anual</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Fecha de inicio</Label>
+                    <Input 
+                      type="date" 
+                      value={currentCycle.start_date || ''} 
+                      onChange={(e) => setCurrentCycle({...currentCycle, start_date: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Fecha de fin</Label>
+                    <Input 
+                      type="date" 
+                      value={currentCycle.end_date || ''} 
+                      onChange={(e) => setCurrentCycle({...currentCycle, end_date: e.target.value})}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Tipo de ciclo</Label>
-                  <Select defaultValue="semester">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="quarter">Trimestral</SelectItem>
-                      <SelectItem value="semester">Semestral</SelectItem>
-                      <SelectItem value="annual">Anual</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Fecha de inicio</Label>
-                  <Input type="date" defaultValue="2024-07-01" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Fecha de fin</Label>
-                  <Input type="date" defaultValue="2024-12-31" />
-                </div>
-              </div>
+              ) : (
+                <p>No hay ciclo activo</p>
+              )}
             </div>
-
+{/* 
             <div className="bg-card rounded-xl border border-border/50 shadow-card p-6">
               <h3 className="font-semibold text-foreground mb-4">Frecuencia de Check-ins</h3>
               <div className="space-y-4">
@@ -159,9 +269,9 @@ export const Settings = () => {
                   <Switch defaultChecked />
                 </div>
               </div>
-            </div>
+            </div> */}
 
-            <Button className="gap-2 gradient-primary border-0">
+            <Button className="gap-2 gradient-primary border-0" onClick={handleSaveCycle}>
               <Save className="w-4 h-4" />
               Guardar cambios
             </Button>
@@ -181,7 +291,16 @@ export const Settings = () => {
             </div>
 
             <div className="space-y-3">
-              {competencies.map((comp, index) => (
+              {loading ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">Cargando competencias...</p>
+                </div>
+              ) : competencies.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">No hay competencias configuradas</p>
+                </div>
+              ) : (
+                competencies.map((comp, index) => (
                 <div
                   key={comp.id}
                   className={cn(
@@ -203,12 +322,18 @@ export const Settings = () => {
                     <Button variant="ghost" size="icon" onClick={() => handleEditCompetency(comp)}>
                       <Edit2 className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteCompetency(comp)}
+                    >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
-              ))}
+              ))
+              )}
             </div>
           </TabsContent>
 
@@ -219,7 +344,10 @@ export const Settings = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Escala para objetivos</Label>
-                  <Select defaultValue="1-5">
+                  <Select 
+                    value={settings.evaluation_scale_objectives} 
+                    onValueChange={(value) => setSettings({...settings, evaluation_scale_objectives: value})}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -234,7 +362,10 @@ export const Settings = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Escala para competencias</Label>
-                  <Select defaultValue="1-5">
+                  <Select 
+                    value={settings.evaluation_scale_competencies} 
+                    onValueChange={(value) => setSettings({...settings, evaluation_scale_competencies: value})}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -259,7 +390,12 @@ export const Settings = () => {
                     <p className="text-sm text-muted-foreground">En la calificación final</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Input type="number" defaultValue="70" className="w-20 text-center" />
+                    <Input 
+                      type="number" 
+                      value={settings.weight_objectives} 
+                      onChange={(e) => setSettings({...settings, weight_objectives: parseInt(e.target.value)})}
+                      className="w-20 text-center" 
+                    />
                     <span className="text-muted-foreground">%</span>
                   </div>
                 </div>
@@ -269,21 +405,26 @@ export const Settings = () => {
                     <p className="text-sm text-muted-foreground">En la calificación final</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Input type="number" defaultValue="30" className="w-20 text-center" />
+                    <Input 
+                      type="number" 
+                      value={settings.weight_competencies} 
+                      onChange={(e) => setSettings({...settings, weight_competencies: parseInt(e.target.value)})}
+                      className="w-20 text-center" 
+                    />
                     <span className="text-muted-foreground">%</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <Button className="gap-2 gradient-primary border-0">
+            <Button className="gap-2 gradient-primary border-0" onClick={handleSaveSettings}>
               <Save className="w-4 h-4" />
               Guardar cambios
             </Button>
           </TabsContent>
 
           {/* Notifications Configuration */}
-          <TabsContent value="notifications" className="space-y-6">
+          {/* <TabsContent value="notifications" className="space-y-6">
             <div className="bg-card rounded-xl border border-border/50 shadow-card p-6">
               <h3 className="font-semibold text-foreground mb-4">Notificaciones por Email</h3>
               <div className="space-y-4">
@@ -360,10 +501,10 @@ export const Settings = () => {
               <Save className="w-4 h-4" />
               Guardar preferencias
             </Button>
-          </TabsContent>
+          </TabsContent> */}
 
           {/* Permissions Configuration */}
-          <TabsContent value="permissions" className="space-y-6">
+          {/* <TabsContent value="permissions" className="space-y-6">
             <div className="bg-card rounded-xl border border-border/50 shadow-card overflow-hidden">
               <div className="p-5 border-b border-border">
                 <h3 className="font-semibold text-foreground">Matriz de Permisos</h3>
@@ -395,13 +536,13 @@ export const Settings = () => {
                   </tbody>
                 </table>
               </div>
-            </div>
+            </div> */}
 
-            <Button className="gap-2 gradient-primary border-0">
+            {/* <Button className="gap-2 gradient-primary border-0">
               <Save className="w-4 h-4" />
               Guardar permisos
             </Button>
-          </TabsContent>
+          </TabsContent> */}
         </Tabs>
       </div>
 
@@ -409,6 +550,7 @@ export const Settings = () => {
         open={isCompetencyFormOpen}
         onOpenChange={setIsCompetencyFormOpen}
         competency={editingCompetency}
+        onSuccess={handleCompetencySuccess}
       />
     </AppLayout>
     </>
