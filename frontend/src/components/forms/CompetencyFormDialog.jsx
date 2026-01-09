@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,6 +21,7 @@ import {
 import { Scale, Plus, Trash2 } from 'lucide-react';
 import { competenciesApi } from '@/lib/api';
 import { useToast } from '@/hooks/UseToast';
+import Swal from 'sweetalert2';
 
 
 const defaultLevelDescriptions = [
@@ -58,6 +59,20 @@ export const CompetencyFormDialog = ({ open, onOpenChange, competency, onSuccess
   const [levelDescriptions, setLevelDescriptions] = useState(
     getLevelDescriptionsArray()
   );
+
+  // Reset form data when competency changes
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        name: competency?.name || '',
+        description: competency?.description || '',
+        levels: competency?.levels || 5,
+        category: competency?.category || 'core',
+      });
+      
+      setLevelDescriptions(getLevelDescriptionsArray());
+    }
+  }, [competency, open]);
 
   const updateLevelDescription = (level, description) => {
     setLevelDescriptions(
@@ -101,9 +116,26 @@ export const CompetencyFormDialog = ({ open, onOpenChange, competency, onSuccess
       if (onSuccess) onSuccess();
     } catch (error) {
       console.error('Error saving competency:', error);
+      
+      let errorMessage = "No se pudo guardar la competencia. Inténtalo de nuevo.";
+      
+      // Extract detailed error message if available
+      if (error.message) {
+        if (error.message.includes('Failed to create competency') || error.message.includes('Failed to update competency')) {
+          errorMessage = error.message;
+        } else if (error.message.includes('detail:')) {
+          const match = error.message.match(/detail: (.+)/);
+          if (match) {
+            errorMessage = match[1];
+          }
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Error",
-        description: "No se pudo guardar la competencia. Inténtalo de nuevo.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -114,37 +146,66 @@ export const CompetencyFormDialog = ({ open, onOpenChange, competency, onSuccess
   const handleDelete = async () => {
     if (!competency) return;
     
-    const confirmDelete = window.confirm(
-      `¿Estás seguro de que quieres eliminar la competencia "${competency.name}"? Esta acción no se puede deshacer.`
-    );
-    
-    if (!confirmDelete) return;
+    const result = await Swal.fire({
+      title: '¿Eliminar competencia?',
+      html: `¿Estás seguro de que quieres eliminar la competencia <strong>"${competency.name}"</strong>?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true
+    });
 
-    setIsLoading(true);
-    try {
-      await competenciesApi.delete(competency.id);
-      toast({
-        title: "Competencia eliminada",
-        description: "La competencia se ha eliminado correctamente.",
-      });
-      onOpenChange(false);
-      if (onSuccess) onSuccess();
-    } catch (error) {
-      console.error('Error deleting competency:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar la competencia. Inténtalo de nuevo.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+    if (result.isConfirmed) {
+      setIsLoading(true);
+      try {
+        await competenciesApi.delete(competency.id);
+        Swal.fire({
+          title: '¡Eliminado!',
+          text: 'La competencia ha sido desactivada correctamente.',
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false
+        });
+        onOpenChange(false);
+        if (onSuccess) onSuccess();
+      } catch (error) {
+        console.error('Error deleting competency:', error);
+        
+        let errorMessage = 'No se pudo eliminar la competencia. Inténtalo de nuevo.';
+        
+        // Extract detailed error message if available
+        if (error.message) {
+          if (error.message.includes('está siendo utilizada en')) {
+            errorMessage = error.message;
+          } else if (error.message.includes('detail:')) {
+            const match = error.message.match(/detail: (.+)/);
+            if (match) {
+              errorMessage = match[1];
+            }
+          } else {
+            errorMessage = error.message;
+          }
+        }
+        
+        Swal.fire({
+          title: 'No se puede eliminar',
+          text: errorMessage,
+          icon: 'warning',
+          confirmButtonColor: '#3b82f6'
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
-    return (
+  return (
     <>
-        <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-150] max-h-[90vh] overflow-y-auto">
+      <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Scale className="w-5 h-5 text-primary" />
@@ -202,7 +263,22 @@ export const CompetencyFormDialog = ({ open, onOpenChange, competency, onSuccess
                 <Label htmlFor="levels">Número de niveles</Label>
                 <Select
                   value={formData.levels.toString()}
-                  onValueChange={(value) => setFormData({ ...formData, levels: parseInt(value) })}
+                  onValueChange={(value) => {
+                    const newLevels = parseInt(value);
+                    setFormData({ ...formData, levels: newLevels });
+                    
+                    // Adjust level descriptions if needed
+                    if (newLevels > levelDescriptions.length) {
+                      // Add more levels with default descriptions
+                      const additionalLevels = defaultLevelDescriptions
+                        .slice(levelDescriptions.length, newLevels)
+                        .map(ld => ({ ...ld, level: newLevels - (newLevels - levelDescriptions.length - 1) }));
+                      setLevelDescriptions([...levelDescriptions, ...additionalLevels]);
+                    } else {
+                      // Remove extra levels
+                      setLevelDescriptions(levelDescriptions.slice(0, newLevels));
+                    }
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -228,7 +304,7 @@ export const CompetencyFormDialog = ({ open, onOpenChange, competency, onSuccess
 
             <div className="space-y-3">
               {levelDescriptions.slice(0, formData.levels).map((ld) => (
-                <div key={ld.level} className="flex items-start gap-3">
+                <div key={`level-${ld.level}`} className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                     <span className="text-sm font-bold text-primary">{ld.level}</span>
                   </div>

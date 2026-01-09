@@ -88,9 +88,10 @@ export const evaluationsApi = {
 
 // ========== Competencies API ==========
 export const competenciesApi = {
-  getAll: (params = {}) => {
+getAll: (params = {}) => {
     const queryParams = new URLSearchParams(params);
-    return request(`/api/competencies?${queryParams}`);
+    const queryString = queryParams.toString();
+    return request(`/api/competencies/${queryString ? '?' + queryString : ''}`);
   },
   getById: (id) => request(`/api/competencies/${id}`),
   create: (data) => request('/api/competencies', { method: 'POST', body: data }),
