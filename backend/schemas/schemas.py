@@ -189,8 +189,15 @@ class CompetencyBase(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-class CompetencyCreate(CompetencyBase):
-    pass
+class CompetencyCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    category: str
+    levels: int = 5
+    level_descriptions: dict = {}
+    is_active: bool = True
+
+    model_config = ConfigDict(from_attributes=True)
 
 class CompetencyUpdate(BaseModel):
     name: Optional[str] = None
@@ -198,13 +205,22 @@ class CompetencyUpdate(BaseModel):
     category: Optional[str] = None
     levels: Optional[int] = None
     level_descriptions: Optional[dict] = None
+    is_active: Optional[bool] = None
 
     model_config = ConfigDict(from_attributes=True)
 
-class CompetencyRead(CompetencyBase):
+class CompetencyRead(BaseModel):
     id: str
+    name: str
+    description: Optional[str] = None
+    category: str
+    levels: int = 5
+    level_descriptions: dict = {}
+    is_active: bool = True
     created_at: datetime
     updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 # ========== EvaluationCompetency Schemas ==========
 class EvaluationCompetencyBase(BaseModel):

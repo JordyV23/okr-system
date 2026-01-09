@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv() 
 
 # For development, use SQLite instead of Oracle
-USE_SQLITE = os.getenv("USE_SQLITE", "true").lower() == "true"
+USE_SQLITE = os.getenv("USE_SQLITE", "false").lower() == "true"
 
 if USE_SQLITE:
     # Use SQLite for development

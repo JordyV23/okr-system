@@ -153,13 +153,14 @@ class Competency(Base):
     description: Mapped[Optional[str]] = mapped_column(Text)
     category: Mapped[str] = mapped_column(String(50))  # core, leadership, technical, functional
     levels: Mapped[int] = mapped_column(Integer, default=5)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=True)  # Logical delete flag
 
     level_descriptions: Mapped[dict] = mapped_column(JSON().with_variant(CLOB(), 'oracle'), default={})
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     
-    evaluation_competencies: Mapped[List["EvaluationCompetency"]] = relationship("EvaluationCompetency", back_populates="competency")
+    evaluation_competencies: Mapped[List["EvaluationCompetency"]] = relationship("EvaluationCompetency", back_populates="competency", cascade="all, delete-orphan")
 
 
 class Evaluation(Base):
