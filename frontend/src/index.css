@@ -91,7 +91,7 @@
     --card-foreground: #03050b;
     --popover: #ffffff;
     --popover-foreground: #03050b;
-    --primary: #6366f1;
+    --primary: #e4020c;
     --primary-foreground: #ffffff;
     --secondary: #f1f3f5;
     --secondary-foreground: #03050b;
@@ -106,26 +106,26 @@
     --info: #0ea5e9;
     --border: #e5e7eb;
     --input: #e5e7eb;
-    --ring: #6366f1;
+    --ring: #e4020c;
     --radius: 0.75rem;
 
     --sidebar-background: #03050b;
     --sidebar-foreground: #f1f3f5;
-    --sidebar-primary: #6366f1;
+    --sidebar-primary: #e4020c;
     --sidebar-border: #2d3139;
 
     --status-on-track: #16a34a;
     --status-at-risk: #f59e0b;
     --status-delayed: #ef4444;
     --status-not-started: #9ca3af;
-    --status-completed: #6366f1;
+    --status-completed: #e4020c;
 
     --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.15);
     --shadow-md: 0 4px 6px -1px rgba(3, 5, 11, 0.1), 0 2px 4px -2px rgba(3, 5, 11, 0.1);
     --shadow-lg: 0 10px 15px -3px rgba(3, 5, 11, 0.1), 0 4px 6px -4px rgba(3, 5, 11, 0.1);
 
     /* Gradientes en Hex */
-    --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    --gradient-primary: linear-gradient(135deg, #e4020c 0%, #8d1a12 100%);
     --gradient-success: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
   }
 
