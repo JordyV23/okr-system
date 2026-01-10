@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from database.database import get_db
-from models.models import User, Department
+from models.models import User, Department, Objective, CheckIn
 from schemas.schemas import UserCreate, UserRead, UserUpdate, UserWithDepartment
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -17,7 +17,7 @@ async def get_users(
     department_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all users with optional filtering"""
+    """Get all users with optional filtering and objectives statistics"""
     query = select(User).options(
         selectinload(User.department),
         selectinload(User.manager)
@@ -28,9 +28,27 @@ async def get_users(
     result = await db.execute(query)
     users = result.scalars().all()
     
-    # Format response to include department name and manager name
+    # Format response to include department name, manager name, and objectives statistics
     formatted_users = []
     for user in users:
+        # Get objectives statistics for this user
+        objectives_query = select(Objective).where(Objective.owner_id == user.id)
+        objectives_result = await db.execute(objectives_query)
+        objectives = objectives_result.scalars().all()
+        
+        objectives_count = len(objectives)
+        avg_progress = 0.0
+        if objectives_count > 0:
+            total_progress = sum(obj.progress or 0 for obj in objectives)
+            avg_progress = float(total_progress / objectives_count)
+        
+        # Get pending check-ins count (simplified approach)
+        checkins_query = select(func.count(CheckIn.id)).where(
+            CheckIn.user_id == user.id
+        )
+        checkins_result = await db.execute(checkins_query)
+        pending_checkins = checkins_result.scalar() or 0
+        
         user_dict = {
             "id": user.id,
             "email": user.email,
@@ -41,6 +59,9 @@ async def get_users(
             "is_active": user.is_active,
             "department": user.department,
             "manager": user.manager.full_name if user.manager else None,
+            "objectivesCount": objectives_count,
+            "avgProgress": avg_progress,
+            "pendingCheckIns": pending_checkins,
         }
         formatted_users.append(user_dict)
     
@@ -49,7 +70,7 @@ async def get_users(
 
 @router.get("/{user_id}", response_model=UserWithDepartment)
 async def get_user(user_id: str, db: AsyncSession = Depends(get_db)):
-    """Get a specific user by ID"""
+    """Get a specific user by ID with objectives statistics"""
     result = await db.execute(
         select(User).options(
             selectinload(User.department),
@@ -60,7 +81,25 @@ async def get_user(user_id: str, db: AsyncSession = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Format response to include department name and manager name
+    # Get objectives statistics for this user
+    objectives_query = select(Objective).where(Objective.owner_id == user.id)
+    objectives_result = await db.execute(objectives_query)
+    objectives = objectives_result.scalars().all()
+    
+    objectives_count = len(objectives)
+    avg_progress = 0.0
+    if objectives_count > 0:
+        total_progress = sum(obj.progress or 0 for obj in objectives)
+        avg_progress = float(total_progress / objectives_count)
+    
+    # Get pending check-ins count
+    checkins_query = select(func.count(CheckIn.id)).where(
+        CheckIn.user_id == user.id
+    )
+    checkins_result = await db.execute(checkins_query)
+    pending_checkins = checkins_result.scalar() or 0
+    
+    # Format response to include department name, manager name, and objectives statistics
     user_dict = {
         "id": user.id,
         "email": user.email,
@@ -70,7 +109,10 @@ async def get_user(user_id: str, db: AsyncSession = Depends(get_db)):
         "manager_id": user.manager_id,
         "is_active": user.is_active,
         "department": user.department,
-        "manager": user.manager
+        "manager": user.manager,
+        "objectivesCount": objectives_count,
+        "avgProgress": avg_progress,
+        "pendingCheckIns": pending_checkins,
     }
     
     return user_dict

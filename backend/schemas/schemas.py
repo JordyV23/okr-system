@@ -61,6 +61,10 @@ class UserRead(UserBase):
 
 class UserWithDepartment(UserRead):
     department: Optional[DepartmentRead] = None
+    manager: Optional[str] = None
+    objectivesCount: Optional[int] = 0
+    avgProgress: Optional[float] = 0.0
+    pendingCheckIns: Optional[int] = 0
 
 # ========== Cycle Schemas ==========
 class CycleBase(BaseModel):

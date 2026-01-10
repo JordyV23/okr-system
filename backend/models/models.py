@@ -97,8 +97,10 @@ class Objective(Base):
     start_date: Mapped[date] = mapped_column(Date)
     end_date: Mapped[date] = mapped_column(Date)
     methodology: Mapped[str] = mapped_column(String(20), default="okr")  # okr or smart
+    is_deleted: Mapped[bool] = mapped_column(Boolean)  # Logical delete flag
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime)  # Deletion timestamp
     
     cycle: Mapped["Cycle"] = relationship("Cycle", back_populates="objectives")
     owner: Mapped["User"] = relationship("User", back_populates="objectives")
