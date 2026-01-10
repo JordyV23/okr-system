@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { TeamMemberFormDialog } from "@/components/forms/TeamMemberFormDialog";
 import { PDIFormDialog } from "@/components/forms/PDIFormDialog";
+import { TeamMemberProfileDialog } from "@/components/dialogs/TeamMemberProfileDialog";
 import { usersApi } from "@/lib/api";
 import { useToast } from "@/hooks/UseToast";
 import {
@@ -51,11 +52,13 @@ export const Team = () => {
   // const [viewMode, setViewMode] = useState("grid");
   const [isMemberFormOpen, setIsMemberFormOpen] = useState(false);
   const [isPDIOpen, setIsPDIOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
 
   const loadTeamMembers = async () => {
     try {
       const data = await usersApi.getAll();
+      console.log('📊 Team members loaded:', data);
       setTeamMembers(data);
     } catch (error) {
       console.error('Error loading team members:', error);
@@ -78,11 +81,20 @@ export const Team = () => {
     setIsPDIOpen(true);
   };
 
-  const filteredMembers = teamMembers.filter(
-    (member) =>
-      member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.department.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleOpenProfile = (member) => {
+    setSelectedMember(member);
+    setIsProfileOpen(true);
+  };
+
+  const filteredMembers = useMemo(() => {
+    return teamMembers.filter(
+      (member) => {
+        const name = (member.full_name || member.name || '').toLowerCase();
+        const search = searchQuery.toLowerCase();
+        return name.includes(search);
+      }
+    );
+  }, [teamMembers, searchQuery]);
 
   // Calculate team stats
   const teamStats = {
@@ -179,10 +191,10 @@ export const Team = () => {
                   className="pl-9 w-64 bg-card"
                 />
               </div>
-              <Button variant="outline" size="sm" className="gap-2">
+              {/* <Button variant="outline" size="sm" className="gap-2">
                 <Filter className="w-4 h-4" />
                 Filtros
-              </Button>
+              </Button> */}
             </div>
             <Button
               size="sm"
@@ -218,21 +230,21 @@ export const Team = () => {
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-linear-to-br from-primary to-primary/60 flex items-center justify-center">
                         <span className="text-lg font-semibold text-primary-foreground">
-                          {member.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
+                           {(member.full_name || member.name || 'U')
+                             .split(" ")
+                             .map((n) => n[0])
+                             .join("")}
                         </span>
                       </div>
                       <div>
-                        <h3 className="font-semibold text-foreground">
-                          {member.name}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {member.role}
-                        </p>
-                      </div>
-                    </div>
+                         <h3 className="font-semibold text-foreground">
+                           {member.full_name || member.name}
+                         </h3>
+                         <p className="text-sm text-muted-foreground">
+                           {member.role}
+                         </p>
+                       </div>
+                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button className="p-1 hover:bg-muted rounded-md transition-colors">
@@ -241,9 +253,9 @@ export const Team = () => {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-card">
                         <DropdownMenuItem
-                          onClick={() =>
-                            handleOpenPDI({ name: member.name, id: member.id })
-                          }
+                           onClick={() =>
+                             handleOpenPDI({ name: member.full_name || member.name, id: member.id })
+                           }
                         >
                           Ver/Crear PDI
                         </DropdownMenuItem>
@@ -257,7 +269,7 @@ export const Team = () => {
                   <div className="flex items-center gap-2 mb-4">
                     <Badge variant="secondary" className="gap-1">
                       <Building2 className="w-3 h-3" />
-                      {member.department}
+                      {member.department.name ? member.department.name : 'Sin departamento'}
                     </Badge>
                   </div>
 
@@ -267,16 +279,16 @@ export const Team = () => {
                       <span className="text-sm text-muted-foreground">
                         Avance promedio
                       </span>
-                      <span
-                        className={cn(
-                          "text-sm font-semibold",
-                          getProgressColor(member.avgProgress)
-                        )}
-                      >
-                        {member.avgProgress}%
-                      </span>
+                       <span
+                         className={cn(
+                           "text-sm font-semibold",
+                           getProgressColor(member.avgProgress || 0)
+                         )}
+                       >
+                         {member.avgProgress || 0}%
+                       </span>
                     </div>
-                    <Progress value={member.avgProgress} className="h-2" />
+                     <Progress value={member.avgProgress || 0} className="h-2" />
                   </div>
 
                   {/* Stats */}
@@ -294,9 +306,9 @@ export const Team = () => {
                             getProgressColor(member.avgProgress)
                           )}
                         />
-                        <span className="text-sm font-medium text-foreground">
-                          {member.objectivesCount}
-                        </span>
+                         <span className="text-sm font-medium text-foreground">
+                           {member.objectivesCount || 0}
+                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
                         Objetivos
@@ -319,9 +331,9 @@ export const Team = () => {
                               : "text-success"
                           )}
                         />
-                        <span className="text-sm font-medium text-foreground">
-                          {member.pendingCheckIns}
-                        </span>
+                         <span className="text-sm font-medium text-foreground">
+                           {member.pendingCheckIns || 0}
+                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
                         Pendientes
@@ -332,11 +344,11 @@ export const Team = () => {
 
                 {/* Footer */}
                 <div className="px-5 py-3 bg-muted/30 border-t border-border/50 flex items-center justify-between">
-                  <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    <Mail className="w-4 h-4" />
-                    Contactar
-                  </button>
-                  <button className="flex items-center gap-1 text-sm text-primary font-medium hover:underline">
+
+                  <button 
+                    className="flex items-center gap-1 text-sm text-primary font-medium hover:underline"
+                    onClick={() => handleOpenProfile(member)}
+                  >
                     Ver perfil
                     <ChevronRight className="w-4 h-4" />
                   </button>
@@ -366,15 +378,22 @@ export const Team = () => {
         />
 
         {selectedMember && (
-          <PDIFormDialog
-            open={isPDIOpen}
-            onOpenChange={setIsPDIOpen}
-            employeeName={selectedMember.name}
-            employeeId={selectedMember.id}
-            onSuccess={() => {
-              // Aquí podríamos refrescar PDIs si fuera necesario
-            }}
-          />
+          <>
+            <PDIFormDialog
+              open={isPDIOpen}
+              onOpenChange={setIsPDIOpen}
+              employeeName={selectedMember.full_name || selectedMember.name}
+              employeeId={selectedMember.id}
+              onSuccess={() => {
+                // Aquí podríamos refrescar PDIs si fuera necesario
+              }}
+            />
+            <TeamMemberProfileDialog
+              open={isProfileOpen}
+              onOpenChange={setIsProfileOpen}
+              member={selectedMember}
+            />
+          </>
         )}
       </AppLayout>
     </>

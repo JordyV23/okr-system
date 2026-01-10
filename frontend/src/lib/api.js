@@ -54,6 +54,8 @@ export const usersApi = {
   create: (data) => request('/api/users', { method: 'POST', body: data }),
   update: (id, data) => request(`/api/users/${id}`, { method: 'PUT', body: data }),
   delete: (id) => request(`/api/users/${id}`, { method: 'DELETE' }),
+  getDepartments: () => request('/api/users/departments/'),
+  getManagers: () => request('/api/users/managers/'),
 };
 
 // ========== Objectives API ==========

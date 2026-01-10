@@ -462,7 +462,7 @@ export const CompetencyFormDialog = ({ open, onOpenChange, competency, onSuccess
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] p-0">
+      <DialogContent className="sm:max-w-175 max-h-[90vh] p-0">
         <DialogHeader className="px-5 pt-5 pb-3 border-b">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Scale className="w-5 h-5 text-primary" />
