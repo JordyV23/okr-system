@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
@@ -61,6 +61,7 @@ export const ObjectiveFormDialog = ({
     weight: objective?.weight || 25,
     methodology: objective?.methodology || "okr",
   });
+  const [debouncedFormData, setDebouncedFormData] = useState(formData);
 
   const [keyResults, setKeyResults] = useState(
     objective?.key_results?.map((kr) => ({
@@ -85,17 +86,25 @@ export const ObjectiveFormDialog = ({
     ]);
   };
 
-  const removeKeyResult = (id) => {
+  const removeKeyResult = useCallback((id) => {
     if (keyResults.length > 1) {
       setKeyResults(keyResults.filter((kr) => kr.id !== id));
     }
-  };
+  }, [keyResults]);
 
-  const updateKeyResult = (id, field, value) => {
+  // Debounce form data to reduce re-renders
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedFormData(formData);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [formData]);
+
+  const updateKeyResult = useCallback((id, field, value) => {
     setKeyResults(
       keyResults.map((kr) => (kr.id === id ? { ...kr, [field]: value } : kr))
     );
-  };
+  }, [keyResults]);
 
   const loadTeamMembers = async () => {
     try {
@@ -116,11 +125,43 @@ export const ObjectiveFormDialog = ({
   };
 
   useEffect(() => {
-    if (open) {
-      loadTeamMembers();
-      loadCycles();
+    if (open && (teamMembers.length === 0 || cycles.length === 0)) {
+      const loadData = async () => {
+        await Promise.all([
+          teamMembers.length === 0 ? loadTeamMembers() : Promise.resolve(),
+          cycles.length === 0 ? loadCycles() : Promise.resolve()
+        ]);
+      };
+      loadData();
     }
-  }, [open]);
+  }, [open, teamMembers.length, cycles.length]);
+
+  // Update form data when objective changes
+  useEffect(() => {
+    if (objective) {
+      setFormData({
+        title: objective.title || "",
+        description: objective.description || "",
+        type: objective.type || "",
+        ownerId: objective.owner?.id || objective.owner_id || "",
+        cycleId: objective.cycle?.id || objective.cycle_id || "",
+        startDate: objective.start_date || "",
+        endDate: objective.end_date || "",
+        weight: objective.weight || 25,
+        methodology: objective.methodology || "okr",
+      });
+      
+      setKeyResults(
+        objective.key_results?.map((kr) => ({
+          id: kr.id,
+          title: kr.title,
+          metric: kr.metric || "",
+          target: kr.target,
+          unit: kr.unit || "%",
+        })) || [{ id: "1", title: "", metric: "", target: 0, unit: "%" }]
+      );
+    }
+  }, [objective]);
 
   const validateForm = () => {
     const newErrors = {};

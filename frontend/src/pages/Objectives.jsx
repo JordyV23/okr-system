@@ -18,11 +18,28 @@ import {
   Building2,
   LayoutGrid,
   List,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ObjectiveFormDialog } from "@/components/forms/ObjectiveFormDialog";
 import { objectivesApi } from "@/lib/api";
 import { useToast } from "@/hooks/UseToast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/DropdownMenu";
+import Swal from "sweetalert2";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/Pagination";
 
 const typeLabels = {
   strategic: { label: "Estratégico", className: "bg-primary/10 text-primary" },
@@ -47,11 +64,31 @@ export const Objectives = () => {
   const [viewMode, setViewMode] = useState("list");
   const [expandedObjective, setExpandedObjective] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedObjective, setSelectedObjective] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(3);
+  const [totalCount, setTotalCount] = useState(0);
 
   const loadObjectives = async () => {
     try {
-      const data = await objectivesApi.getAll();
+      // Get paginated data
+      const data = await objectivesApi.getAll({
+        skip: (currentPage - 1) * itemsPerPage,
+        limit: itemsPerPage
+      });
       setObjectives(data);
+      
+      // Get total count for pagination (without filters for now)
+      const allData = await objectivesApi.getAll();
+      const filteredData = allData.filter((obj) => {
+        const matchesSearch =
+          obj.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (obj.owner?.full_name || '').toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus =
+          selectedStatus === "all" || obj.status === selectedStatus;
+        return matchesSearch && matchesStatus;
+      });
+      setTotalCount(filteredData.length);
     } catch (error) {
       console.error('Error loading objectives:', error);
       toast({
@@ -66,7 +103,73 @@ export const Objectives = () => {
 
   useEffect(() => {
     loadObjectives();
-  }, []);
+  }, [currentPage, itemsPerPage]);
+
+  const handleEditObjective = (objective) => {
+    setSelectedObjective(objective);
+    setIsFormOpen(true);
+  };
+
+  const handleCloseForm = () => {
+    setIsFormOpen(false);
+    setSelectedObjective(null);
+  };
+
+  const handleDeleteObjective = async (objective) => {
+    // Confirmación de eliminación con SweetAlert
+    const result = await Swal.fire({
+      title: "¿Eliminar Objetivo?",
+      html: `¿Estás seguro de que deseas eliminar el objetivo "<b>${objective.title}</b>"?<br><small>Esta acción no se puede deshacer.</small>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33b2a",
+      cancelButtonColor: "#6c757d",
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar",
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    try {
+      // Mostrar loading
+      Swal.fire({
+        title: "Eliminando...",
+        html: `Eliminando el objetivo "<b>${objective.title}</b>"`,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      await objectivesApi.delete(objective.id);
+      
+      // Cerrar loading y mostrar éxito
+      Swal.close();
+      await Swal.fire({
+        title: "¡Eliminado!",
+        html: `El objetivo "<b>${objective.title}</b>" ha sido eliminado correctamente.`,
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+      loadObjectives(); // Recargar la lista
+    } catch (error) {
+      console.error("Error deleting objective:", error);
+      Swal.close();
+      await Swal.fire({
+        title: "Error",
+        html: `No se pudo eliminar el objetivo "<b>${objective.title}</b>".<br><small>Inténtalo de nuevo.</small>`,
+        icon: "error",
+        confirmButtonColor: "#d33b2a",
+        confirmButtonText: "Entendido",
+      });
+    }
+  };
+
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   const filteredObjectives = objectives.filter((obj) => {
     const matchesSearch =
@@ -114,6 +217,23 @@ export const Objectives = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Mostrar</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1); // Reset to first page when changing items per page
+                  }}
+                  className="px-2 py-1 text-sm bg-card border border-border rounded-md"
+                >
+                  <option value={3}>3</option>
+                  <option value={6}>6</option>
+                  <option value={9}>9</option>
+                  <option value={12}>12</option>
+                </select>
+                <span className="text-sm text-muted-foreground">por página</span>
+              </div>
               <div className="flex items-center gap-1 p-1 bg-card rounded-lg border border-border">
                 <button
                   onClick={() => setViewMode("list")}
@@ -138,10 +258,6 @@ export const Objectives = () => {
                   <LayoutGrid className="w-4 h-4" />
                 </button>
               </div>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Filter className="w-4 h-4" />
-                Filtros
-              </Button>
               <Button
                 size="sm"
                 className="gap-2 gradient-primary border-0"
@@ -193,9 +309,26 @@ export const Objectives = () => {
                         </p>
                       </div>
                     </div>
-                    <button className="p-1 hover:bg-muted rounded-md transition-colors">
-                      <MoreVertical className="w-5 h-5 text-muted-foreground" />
-                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="p-1 hover:bg-muted rounded-md transition-colors">
+                          <MoreVertical className="w-5 h-5 text-muted-foreground" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-card">
+                        <DropdownMenuItem onClick={() => handleEditObjective(objective)}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Editar objetivo
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleDeleteObjective(objective)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Eliminar objetivo
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
                   {/* Meta Info */}
@@ -292,6 +425,41 @@ export const Objectives = () => {
             </div>
           )}
 
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center mt-6">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(page)}
+                        isActive={currentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+
           {filteredObjectives.length === 0 && !isLoading && (
             <div className="text-center py-12">
               <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -307,7 +475,8 @@ export const Objectives = () => {
 
         <ObjectiveFormDialog 
           open={isFormOpen} 
-          onOpenChange={setIsFormOpen}
+          onOpenChange={handleCloseForm}
+          objective={selectedObjective}
           onSuccess={loadObjectives}
         />
       </AppLayout>

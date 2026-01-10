@@ -2,7 +2,6 @@ import * as React from "react";
 import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { ButtonProps, buttonVariants } from "@/components/ui/button";
 
 const Pagination = ({ className, ...props }) => (
   <nav
@@ -28,14 +27,33 @@ const PaginationItem = React.forwardRef(({ className, ...props }, ref) => (
 ));
 PaginationItem.displayName = "PaginationItem";
 
+const getButtonStyles = (variant, size) => {
+  const baseStyles = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0";
+  
+  const variants = {
+    default: "bg-primary text-primary-foreground hover:bg-primary/90",
+    destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+    outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+    ghost: "hover:bg-accent hover:text-accent-foreground",
+    link: "text-primary underline-offset-4 hover:underline",
+  };
+  
+  const sizes = {
+    default: "h-10 px-4 py-2",
+    sm: "h-9 rounded-md px-3",
+    lg: "h-11 rounded-md px-8",
+    icon: "h-10 w-10",
+  };
+  
+  return cn(baseStyles, variants[variant] || variants.default, sizes[size] || sizes.default);
+};
+
 const PaginationLink = ({ className, isActive, size = "icon", ...props }) => (
-  <a
+  <button
     aria-current={isActive ? "page" : undefined}
     className={cn(
-      buttonVariants({
-        variant: isActive ? "outline" : "ghost",
-        size,
-      }),
+      getButtonStyles(isActive ? "outline" : "ghost", size),
       className
     )}
     {...props}
@@ -44,28 +62,34 @@ const PaginationLink = ({ className, isActive, size = "icon", ...props }) => (
 PaginationLink.displayName = "PaginationLink";
 
 const PaginationPrevious = ({ className, ...props }) => (
-  <PaginationLink
+  <button
     aria-label="Go to previous page"
-    size="default"
-    className={cn("gap-1 pl-2.5", className)}
+    className={cn(
+      getButtonStyles("ghost", "default"),
+      "gap-1 pl-2.5",
+      className
+    )}
     {...props}
   >
     <ChevronLeft className="h-4 w-4" />
     <span>Previous</span>
-  </PaginationLink>
+  </button>
 );
 PaginationPrevious.displayName = "PaginationPrevious";
 
 const PaginationNext = ({ className, ...props }) => (
-  <PaginationLink
+  <button
     aria-label="Go to next page"
-    size="default"
-    className={cn("gap-1 pr-2.5", className)}
+    className={cn(
+      getButtonStyles("ghost", "default"),
+      "gap-1 pr-2.5",
+      className
+    )}
     {...props}
   >
     <span>Next</span>
     <ChevronRight className="h-4 w-4" />
-  </PaginationLink>
+  </button>
 );
 PaginationNext.displayName = "PaginationNext";
 
