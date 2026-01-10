@@ -21,7 +21,7 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(255))
     logo_url: Mapped[Optional[str]] = mapped_column(String(500))
     # En Oracle 21c+ existe tipo JSON, en anteriores usar CLOB con JSON válido
-    settings: Mapped[dict] = mapped_column(JSON().with_variant(CLOB(), 'oracle'), default={})
+    settings: Mapped[str | dict] = mapped_column(JSON().with_variant(CLOB(), 'oracle'), default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     departments: Mapped[List["Department"]] = relationship(
@@ -155,7 +155,7 @@ class Competency(Base):
     levels: Mapped[int] = mapped_column(Integer, default=5)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=True)  # Logical delete flag
 
-    level_descriptions: Mapped[dict] = mapped_column(JSON().with_variant(CLOB(), 'oracle'), default={})
+    level_descriptions: Mapped[str | dict] = mapped_column(JSON().with_variant(CLOB(), 'oracle'), default={})
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

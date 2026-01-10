@@ -1,10 +1,10 @@
 import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import selectinload
 from database.database import get_db
-from models.models import Organization
+from models.models import Organization, Competency
 from schemas.schemas import SettingsRead, SettingsUpdate
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -67,7 +67,11 @@ async def update_settings(settings: SettingsUpdate, db: AsyncSession = Depends(g
     settings_dict["weight_objectives"] = settings.weight_objectives
     settings_dict["weight_competencies"] = settings.weight_competencies
     
-    organization.settings = settings_dict
+    # Convert to JSON string for Oracle compatibility
+    organization.settings = json.dumps(settings_dict)
+    
+    # Update existing competencies if scale or weight changed
+    await update_existing_competencies(db, settings_dict)
     
     await db.commit()
     
@@ -82,3 +86,63 @@ async def update_settings(settings: SettingsUpdate, db: AsyncSession = Depends(g
         weight_objectives=settings_dict["weight_objectives"],
         weight_competencies=settings_dict["weight_competencies"]
     )
+
+async def update_existing_competencies(db: AsyncSession, settings_dict: dict):
+    """
+    Update existing competencies to adapt to new scale settings
+    """
+    try:
+        # Get all active competencies
+        result = await db.execute(select(Competency).where(Competency.is_active == True))
+        competencies = result.scalars().all()
+        
+        new_scale = settings_dict.get("evaluation_scale_competencies", "1-5")
+        
+        # Define scale mapping
+        scale_mapping = {
+            "1-5": {"min": 1, "max": 5, "default": 3},
+            "1-10": {"min": 1, "max": 10, "default": 5},
+            "letters": {"min": 1, "max": 5, "default": 3},  # Letters map to 1-5 internally
+            "descriptive": {"min": 1, "max": 5, "default": 3}  # Descriptive map to 1-5 internally
+        }
+        
+        new_scale_info = scale_mapping.get(new_scale, scale_mapping["1-5"])
+        
+        # Update each competency's level descriptions to match new scale
+        for comp in competencies:
+            current_descriptions = comp.level_descriptions
+            if isinstance(current_descriptions, str):
+                try:
+                    current_descriptions = json.loads(current_descriptions) if current_descriptions.strip() else {}
+                except json.JSONDecodeError:
+                    current_descriptions = {}
+            elif not isinstance(current_descriptions, dict):
+                current_descriptions = {}
+            
+            # Get current levels
+            current_levels = comp.levels or 5
+            
+            # Adjust levels if necessary
+            if current_levels != new_scale_info["max"]:
+                new_level_descriptions = {}
+                new_levels = new_scale_info["max"]
+                
+                # Map existing levels to new scale
+                for i in range(1, new_levels + 1):
+                    if i <= current_levels:
+                        # Keep existing description if available
+                        new_level_descriptions[str(i)] = current_descriptions.get(str(i), f"Nivel {i}")
+                    else:
+                        # Create default description for new levels
+                        new_level_descriptions[str(i)] = f"Nivel {i}"
+                
+                # Update competency
+                comp.levels = new_levels
+                comp.level_descriptions = json.dumps(new_level_descriptions)
+        
+        await db.commit()
+        
+    except Exception as e:
+        print(f"Error updating competencies: {str(e)}")
+        # Don't raise error here, as settings update should still succeed
+        pass
