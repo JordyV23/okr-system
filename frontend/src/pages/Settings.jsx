@@ -51,6 +51,7 @@ export const Settings = () => {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState(null);
   const [notifications, setNotifications] = useState({
     emailCheckIn: true,
     emailDeadline: true,
@@ -70,6 +71,11 @@ export const Settings = () => {
   }, []);
 
   const handleDeleteCompetency = useCallback(async (comp) => {
+    // Cancelar timeout anterior
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+      setLoadingTimeout(null);
+    }
     const result = await Swal.fire({
       title: "¿Desactivar competencia?",
       html: `¿Estás seguro de que quieres desactivar la competencia <strong>"${comp.name}"</strong>?<br>Podrás reactivarla más tarde si es necesario.`,
@@ -135,22 +141,27 @@ export const Settings = () => {
 
   const handleCompetencySuccess = useCallback(async () => {
     try {
+      // Reload competencies after successful create/update
       const competenciesData = await competenciesApi.getAll();
       setCompetencies(competenciesData);
+      console.log('✅ Competencias recargadas:', competenciesData.length);
     } catch (error) {
-      Swal.fire({
-        title: "Error",
-        text: "No se pudo recargar la lista de competencias.",
-        icon: "error",
-        confirmButtonColor: "#3b82f6",
-      });
+      console.error('Error reloading competencies:', error);
     }
   }, []);
 
   const handleSaveCycle = useCallback(async () => {
     if (!currentCycle) return;
-
+    
+    // Cancelar timeout anterior
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+      setLoadingTimeout(null);
+    }
+    
     setSaving(true);
+    console.log('💾 Guardando ciclo...');
+    
     try {
       await cyclesApi.update(currentCycle.id, {
         name: currentCycle.name,
@@ -158,28 +169,62 @@ export const Settings = () => {
         end_date: currentCycle.end_date,
         is_active: currentCycle.is_active,
       });
+      
       // Reload cycles after successful update
       const cyclesData = await cyclesApi.getAll();
       setCycles(cyclesData);
-      const activeCycle = cyclesData.find((cycle) => cycle.is_active);
+      const activeCycle = cyclesData.find(cycle => cycle.is_active);
       setCurrentCycle(activeCycle || cyclesData[0]);
+      
+      // Success alert
+      console.log('✅ Ciclo guardado correctamente');
+      Swal.fire({
+        title: '¡Éxito!',
+        text: 'El ciclo se ha guardado correctamente.',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      });
     } catch (error) {
+      console.error('Error saving cycle:', error);
       Swal.fire({
         title: "Error",
         text: "No se pudo guardar el ciclo. Inténtalo de nuevo.",
         icon: "error",
-        confirmButtonColor: "#3b82f6",
+        confirmButtonColor: "#3b82f6"
       });
     } finally {
       setSaving(false);
+      
+      // Limpiar timeout si todo va bien
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+        setLoadingTimeout(null);
+      }
     }
   }, [currentCycle]);
 
   const handleSaveSettings = useCallback(async () => {
+    // Cancelar timeout anterior
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+      setLoadingTimeout(null);
+    }
+    
     setSaving(true);
+    
     try {
       const updatedSettings = await settingsApi.update(settings);
       setSettings(updatedSettings);
+      
+      // Success alert
+      Swal.fire({
+        title: '¡Éxito!',
+        text: 'La configuración se ha guardado correctamente.',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      });
     } catch (error) {
       Swal.fire({
         title: "Error",
@@ -187,9 +232,15 @@ export const Settings = () => {
         icon: "error",
         confirmButtonColor: "#3b82f6",
       });
-    } finally {
-      setSaving(false);
-    }
+      } finally {
+        setSaving(false);
+        
+        // Limpiar timeout si todo va bien
+        if (loadingTimeout) {
+          clearTimeout(loadingTimeout);
+          setLoadingTimeout(null);
+        }
+      }
   }, [settings]);
 
   // Memoized state update handlers to prevent re-renders
@@ -201,31 +252,46 @@ export const Settings = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-
-        // Load competencies first - if empty, show message
-        const competenciesData = await competenciesApi.getAll();
-        setCompetencies(competenciesData);
-
-        // Load cycles separately
-        const cyclesData = await cyclesApi.getAll();
-        setCycles(cyclesData);
-
-        // Find active cycle
-        const activeCycle = cyclesData.find((cycle) => cycle.is_active);
-        setCurrentCycle(activeCycle || cyclesData[0]);
+        console.log('🔄 Iniciando carga de datos...');
+        
+        // Load all data in parallel for better performance
+        const [competenciesData, cyclesData, settingsData] = await Promise.allSettled([
+          competenciesApi.getAll(),
+          cyclesApi.getAll(),
+          settingsApi.get()
+        ]);
+        
+        // Handle competencies
+        if (competenciesData.status === 'fulfilled') {
+          setCompetencies(competenciesData.value);
+          console.log('✅ Competencias cargadas:', competenciesData.value.length);
+        } else {
+          console.error('Error cargando competencias:', competenciesData.reason);
+        }
+        
+        // Handle cycles
+        if (cyclesData.status === 'fulfilled') {
+          setCycles(cyclesData.value);
+          const activeCycle = cyclesData.value.find(cycle => cycle.is_active);
+          setCurrentCycle(activeCycle || cyclesData.value[0]);
+          console.log('✅ Ciclos cargados:', cyclesData.value.length);
+        } else {
+          console.error('Error cargando ciclos:', cyclesData.reason);
+        }
+        
+        // Handle settings
+        if (settingsData.status === 'fulfilled') {
+          setSettings(settingsData.value);
+          console.log('✅ Configuración cargada');
+        } else {
+          console.error('Error cargando configuración:', settingsData.reason);
+        }
+        
       } catch (error) {
-        // Keep default settings
-      }
-
-      // Load settings separately
-      try {
-        const settingsData = await settingsApi.get();
-        setSettings(settingsData);
-      } catch (error) {
-        console.error("Error loading settings data:", error);
-        // Keep default settings
+        console.error('Error general en carga de datos:', error);
       } finally {
         setLoading(false);
+        console.log('📊 Carga de datos finalizada');
       }
     };
 

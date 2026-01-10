@@ -13,6 +13,8 @@ async function request(endpoint, options = {}) {
     },
     ...options,
   };
+  
+  console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
 
   if (options.body && typeof options.body === 'object') {
     config.body = JSON.stringify(options.body);
@@ -21,17 +23,21 @@ async function request(endpoint, options = {}) {
   try {
     const response = await fetch(url, config);
     
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
-    }
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: response.statusText }));
+    console.error(`🔴 API Error: ${endpoint} - ${error.detail || `HTTP error! status: ${response.status}`}`);
+    throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+  }
 
     // Si la respuesta está vacía (status 204), retornar null
     if (response.status === 204) {
+      console.log(`✅ API Success: ${endpoint} - No Content (204)`);
       return null;
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log(`✅ API Success: ${endpoint} - ${response.status} (${Array.isArray(data) ? data.length + ' items' : typeof data === 'object' ? 'object' : 'data'})`);
+    return data;
   } catch (error) {
     console.error(`API Error: ${endpoint}`, error);
     throw error;
